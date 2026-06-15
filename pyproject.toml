@@ -1,0 +1,100 @@
+[project]
+name = "anshim"
+version = "0.1.0"
+description = "한국 기업을 위한 로컬 LLM 기반 보안 코드 감사 도구 (ISMS/ISMS-P 컴플라이언스 매핑)"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [
+    { name = "AnShim Contributors" }
+]
+keywords = [
+    "security",
+    "sast",
+    "code-audit",
+    "llm",
+    "isms",
+    "isms-p",
+    "compliance",
+    "korean",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Quality Assurance",
+    "Natural Language :: Korean",
+]
+
+dependencies = [
+    "typer>=0.9.0",
+    "pydantic>=2.0.0",
+    "sqlalchemy>=2.0.0",
+    "jinja2>=3.1.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "mypy>=1.0.0",
+    "ruff>=0.1.0",
+]
+
+[project.scripts]
+anshim = "anshim.cli.main:app"
+
+[project.urls]
+Homepage = "https://github.com/anshim/anshim"
+Documentation = "https://github.com/anshim/anshim/docs"
+Repository = "https://github.com/anshim/anshim"
+Issues = "https://github.com/anshim/anshim/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["anshim"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # Pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "S",      # flake8-bandit (security)
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["anshim"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = "-v --cov=anshim --cov-report=term-missing"
