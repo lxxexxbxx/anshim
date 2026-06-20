@@ -1,8 +1,47 @@
+# 환경변수
 .env
+.env.local
+
+# 로그
 logs/
+*.log
+
+# Python
 __pycache__/
 *.pyc
-.DS_Store
+*.pyo
+*.pyd
+.Python
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# 가상환경
 venv/
-*.log
+.venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# AnShim 데이터
+.anshim/
+anshim-reports/
+*.db
+
+# 기타
 .aider*
+.coverage
+htmlcov/
