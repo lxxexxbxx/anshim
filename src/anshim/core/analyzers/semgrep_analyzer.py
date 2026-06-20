@@ -75,10 +75,24 @@ class SemgrepAnalyzer:
 
         try:
             # Semgrep 명령 구성
+            # 다중 언어 지원을 위해 각 언어별 룰셋 추가
+            configs = []
+            for lang in languages:
+                if lang == "python":
+                    configs.extend(["--config", "p/python"])
+                elif lang in ("javascript", "typescript"):
+                    configs.extend(["--config", "p/javascript"])
+                elif lang == "java":
+                    configs.extend(["--config", "p/java"])
+
+            # 기본값으로 p/default 추가 (언어 무관 규칙)
+            if not configs:
+                configs = ["--config", "p/default"]
+
             cmd = [
                 "semgrep",
                 "--json",
-                "--config", "auto",
+                *configs,
                 "--no-git-ignore",  # .gitignore 무시 (테스트 코드도 분석)
                 "--metrics", "off",  # 메트릭 전송 비활성화 (프라이버시)
                 str(target),

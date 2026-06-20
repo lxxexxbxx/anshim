@@ -1,0 +1,76 @@
+# ISMS / ISMS-P 2.10.1 SQL 인젝션
+# 관련 조항: 2.10 시스템 및 서비스 보안 관리 - 2.10.1 보안시스템 운영
+id: 2.10.1-sql-injection
+title: SQL 인젝션 취약점
+description: |
+  사용자 입력값이 SQL 쿼리에 직접 삽입되어 SQL 인젝션 공격에 취약한 코드 탐지.
+  SQL 인젝션은 데이터베이스의 무단 접근, 데이터 유출, 데이터 변조/삭제를 유발할 수 있습니다.
+category: "2.10 시스템 및 서비스 보안 관리"
+subcategory: "2.10.1 보안시스템 운영"
+
+applicable_to:
+  - isms
+  - isms-p
+
+severity: critical
+
+languages:
+  - python
+  - java
+  - javascript
+
+# Semgrep 규칙 ID 매핑
+semgrep_rule_ids:
+  - "python.django.security.injection.sql.sql-injection-using-raw"
+  - "python.flask.security.injection.sql-injection"
+  - "python.lang.security.audit.formatted-sql-query"
+  - "python.sqlalchemy.security.sqlalchemy-execute-raw-query"
+  - "java.lang.security.audit.sqli.jdbc-sqli"
+  - "java.lang.security.audit.sqli.spring-sqli"
+  - "javascript.sequelize.security.audit.sequelize-raw-query"
+
+# Bandit 테스트 ID 매핑 (Python 전용)
+bandit_test_ids:
+  - "B608"  # SQL injection via string formatting
+  - "B610"  # Django extra used with string formatting
+  - "B611"  # Django RawSQL used with string formatting
+
+# 취약한 패턴 예시
+vulnerable_patterns:
+  python:
+    - "cursor.execute(f\"SELECT * FROM users WHERE id = {user_id}\")"
+    - "Model.objects.raw(f\"SELECT * FROM ... WHERE id = {id}\")"
+    - "db.execute(\"SELECT * FROM users WHERE name = '\" + name + \"'\")"
+  java:
+    - "stmt.executeQuery(\"SELECT * FROM users WHERE id = \" + id)"
+    - "connection.createStatement().executeQuery(sql + userInput)"
+  javascript:
+    - "db.query(`SELECT * FROM users WHERE id = ${userId}`)"
+    - "sequelize.query(\"SELECT * FROM users WHERE id = \" + id)"
+
+# 수정 권장사항
+remediation:
+  ko: |
+    파라미터화된 쿼리(Prepared Statement)를 사용하세요:
+    - Python: cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+    - Java: PreparedStatement ps = conn.prepareStatement("SELECT * FROM users WHERE id = ?")
+    - JavaScript: db.query("SELECT * FROM users WHERE id = ?", [userId])
+  en: |
+    Use parameterized queries (Prepared Statements):
+    - Python: cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+    - Java: PreparedStatement ps = conn.prepareStatement("SELECT * FROM users WHERE id = ?")
+    - JavaScript: db.query("SELECT * FROM users WHERE id = ?", [userId])
+
+# 참조 자료
+references:
+  - https://www.kisa.or.kr/public/laws/laws3.jsp
+  - https://cwe.mitre.org/data/definitions/89.html
+  - https://owasp.org/www-community/attacks/SQL_Injection
+  - https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html
+
+# CWE/OWASP 매핑
+cwe_ids:
+  - "CWE-89"  # Improper Neutralization of Special Elements used in an SQL Command
+
+owasp_ids:
+  - "A03:2021"  # Injection

@@ -1,0 +1,102 @@
+# ISMS-P 전용: 3.2.1 개인정보 암호화
+# 관련 조항: 3.2 개인정보 수집/이용/저장 - 3.2.1 개인정보 수집 제한
+id: 3.2.1-personal-info-encryption
+title: 개인정보 저장 시 암호화 미적용
+description: |
+  개인정보(주민등록번호, 비밀번호, 바이오정보 등)가 암호화 없이 저장되는 코드 탐지.
+  개인정보보호법에 따라 고유식별정보, 비밀번호, 바이오정보는 암호화하여 저장해야 합니다.
+category: "3.2 개인정보 수집/이용/저장"
+subcategory: "3.2.1 개인정보 수집 제한"
+
+# ISMS-P 전용 (개인정보 처리 단계별 요구사항)
+applicable_to:
+  - isms-p
+
+severity: critical
+
+languages:
+  - python
+  - java
+
+# Semgrep 규칙 ID 매핑
+semgrep_rule_ids:
+  - "python.lang.security.audit.hardcoded-password"
+  - "python.django.security.audit.unvalidated-password"
+  - "java.lang.security.audit.password-in-string"
+
+# Bandit 테스트 ID 매핑 (Python 전용)
+bandit_test_ids:
+  - "B105"  # hardcoded_password_string
+  - "B106"  # hardcoded_password_funcarg
+  - "B107"  # hardcoded_password_default
+
+# 취약한 패턴 예시 (한국 개인정보 특화)
+vulnerable_patterns:
+  python:
+    - "ssn = \"\"  # 주민등록번호 평문 저장"
+    - "db.execute(\"INSERT INTO users (password) VALUES (?)\", (plain_password,))"
+    - "user.rrn = request.form['rrn']  # 주민등록번호 직접 저장"
+  java:
+    - "String ssn = request.getParameter(\"ssn\");"
+    - "user.setPassword(plainPassword);  // 평문 비밀번호 저장"
+
+# 개인정보 필드 키워드 (탐지용)
+personal_info_keywords:
+  - "ssn"  # Social Security Number
+  - "rrn"  # Resident Registration Number (주민등록번호)
+  - "jumin"  # 주민번호
+  - "password"
+  - "passwd"
+  - "pwd"
+  - "credit_card"
+  - "card_number"
+  - "cvv"
+  - "biometric"
+  - "fingerprint"
+  - "face_id"
+
+# 수정 권장사항
+remediation:
+  ko: |
+    개인정보 저장 시 반드시 암호화를 적용하세요:
+
+    1. 비밀번호: 단방향 해시(bcrypt, argon2, scrypt) 사용
+       - Python: bcrypt.hashpw(password.encode(), bcrypt.gensalt())
+       - Java: BCrypt.hashpw(password, BCrypt.gensalt())
+
+    2. 주민등록번호, 카드정보 등: 양방향 암호화(AES-256) 사용
+       - Python: cryptography 라이브러리의 Fernet 또는 AES 사용
+       - Java: javax.crypto 패키지의 AES/GCM 사용
+
+    3. 바이오정보: 별도 보관 및 암호화 필수
+
+    ※ 개인정보보호법 제24조, 제29조 참조
+  en: |
+    Always encrypt personal information when storing:
+
+    1. Passwords: Use one-way hashing (bcrypt, argon2, scrypt)
+    2. National ID, Card numbers: Use bidirectional encryption (AES-256)
+    3. Biometric data: Store separately with encryption
+
+# 참조 자료
+references:
+  - https://www.law.go.kr/법령/개인정보보호법
+  - https://www.pipc.go.kr/
+  - https://www.kisa.or.kr/public/laws/laws3.jsp
+  - https://cwe.mitre.org/data/definitions/311.html
+  - https://cwe.mitre.org/data/definitions/312.html
+
+# CWE/OWASP 매핑
+cwe_ids:
+  - "CWE-311"  # Missing Encryption of Sensitive Data
+  - "CWE-312"  # Cleartext Storage of Sensitive Information
+  - "CWE-256"  # Unprotected Storage of Credentials
+
+owasp_ids:
+  - "A02:2021"  # Cryptographic Failures
+
+# 관련 법규
+korean_regulations:
+  - "개인정보보호법 제24조 (고유식별정보의 처리 제한)"
+  - "개인정보보호법 제29조 (안전조치의무)"
+  - "개인정보의 안전성 확보조치 기준 제7조 (개인정보의 암호화)"
