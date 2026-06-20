@@ -1,0 +1,75 @@
+# ISMS / ISMS-P 2.7.1 취약한 암호 알고리즘
+# 관련 조항: 2.7 암호화 적용 - 2.7.1 암호정책 적용
+id: 2.7.1-weak-cryptography
+title: 취약한 암호 알고리즘 사용
+description: |
+  MD5, SHA1 등 취약한 해시 함수 또는 DES, RC4 등 취약한 암호 알고리즘 사용 탐지.
+  안전하지 않은 암호 알고리즘은 무차별 대입 공격, 충돌 공격 등에 취약합니다.
+category: "2.7 암호화 적용"
+subcategory: "2.7.1 암호정책 적용"
+
+applicable_to:
+  - isms
+  - isms-p
+
+severity: high
+
+languages:
+  - python
+  - java
+  - javascript
+
+# Semgrep 규칙 ID 매핑
+semgrep_rule_ids:
+  - "python.cryptography.security.insecure-hash-md5"
+  - "python.cryptography.security.insecure-hash-sha1"
+  - "python.lang.security.audit.insecure-hash-algorithms.insecure-md5-hash"
+  - "python.lang.security.audit.insecure-hash-algorithms.insecure-sha1-hash"
+  - "java.lang.security.audit.crypto.weak-hash"
+  - "javascript.lang.security.audit.insecure-hash"
+
+# Bandit 테스트 ID 매핑 (Python 전용)
+bandit_test_ids:
+  - "B303"  # Use of insecure MD2, MD4, MD5, or SHA1 hash function
+  - "B324"  # hashlib.new insecure hash function
+
+# 취약한 패턴 예시
+vulnerable_patterns:
+  python:
+    - "hashlib.md5("
+    - "hashlib.sha1("
+    - "from Crypto.Hash import MD5"
+    - "from Crypto.Hash import SHA"
+  java:
+    - "MessageDigest.getInstance(\"MD5\")"
+    - "MessageDigest.getInstance(\"SHA-1\")"
+  javascript:
+    - "crypto.createHash('md5')"
+    - "crypto.createHash('sha1')"
+
+# 수정 권장사항
+remediation:
+  ko: |
+    안전한 해시 알고리즘(SHA-256 이상)을 사용하세요:
+    - Python: hashlib.sha256(), hashlib.sha3_256()
+    - Java: MessageDigest.getInstance("SHA-256")
+    - JavaScript: crypto.createHash('sha256')
+  en: |
+    Use secure hash algorithms (SHA-256 or higher):
+    - Python: hashlib.sha256(), hashlib.sha3_256()
+    - Java: MessageDigest.getInstance("SHA-256")
+    - JavaScript: crypto.createHash('sha256')
+
+# 참조 자료
+references:
+  - https://www.kisa.or.kr/public/laws/laws3.jsp
+  - https://cwe.mitre.org/data/definitions/327.html
+  - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/09-Testing_for_Weak_Cryptography/04-Testing_for_Weak_Encryption
+
+# CWE/OWASP 매핑
+cwe_ids:
+  - "CWE-327"  # Use of a Broken or Risky Cryptographic Algorithm
+  - "CWE-328"  # Reversible One-Way Hash
+
+owasp_ids:
+  - "A02:2021"  # Cryptographic Failures

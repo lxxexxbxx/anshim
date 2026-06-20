@@ -171,6 +171,12 @@ class BanditAnalyzer:
                 test_name = finding.get("test_name", "")
                 rule_id = f"bandit.{test_id}" if test_id else f"bandit.{test_name}"
 
+                # line_range 안전하게 추출
+                line_range = finding.get("line_range", [])
+                line_end = None
+                if line_range and len(line_range) >= 2:
+                    line_end = line_range[-1]  # 마지막 라인 번호
+
                 result = AnalysisResult(
                     rule_id=rule_id,
                     title=finding.get("issue_text", "Bandit 보안 이슈"),
@@ -178,7 +184,7 @@ class BanditAnalyzer:
                     severity=severity,
                     file_path=finding.get("filename", ""),
                     line_start=finding.get("line_number", 1),
-                    line_end=finding.get("line_range", [None, None])[1] if finding.get("line_range") else None,
+                    line_end=line_end,
                     code_snippet=code_snippet,
                     source="bandit",
                     confidence=confidence,

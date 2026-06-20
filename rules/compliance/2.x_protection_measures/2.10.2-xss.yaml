@@ -1,0 +1,84 @@
+# ISMS / ISMS-P 2.10.2 XSS (Cross-Site Scripting)
+# 관련 조항: 2.10 시스템 및 서비스 보안 관리 - 2.10.2 클라우드 보안
+id: 2.10.2-xss
+title: 크로스 사이트 스크립팅 (XSS) 취약점
+description: |
+  사용자 입력값이 HTML 페이지에 이스케이프 없이 출력되어 XSS 공격에 취약한 코드 탐지.
+  XSS는 악성 스크립트 실행, 세션 탈취, 피싱 공격에 악용될 수 있습니다.
+category: "2.10 시스템 및 서비스 보안 관리"
+subcategory: "2.10.2 클라우드 보안"
+
+applicable_to:
+  - isms
+  - isms-p
+
+severity: high
+
+languages:
+  - python
+  - java
+  - javascript
+
+# Semgrep 규칙 ID 매핑
+semgrep_rule_ids:
+  - "python.django.security.audit.xss.direct-use-of-httpresponse"
+  - "python.flask.security.audit.render-template-string"
+  - "python.flask.security.audit.xss.audit-flask-render-template-string"
+  - "java.lang.security.audit.xss.no-direct-response-writer"
+  - "javascript.browser.security.audit.unsafe-innerhtml"
+  - "javascript.express.security.audit.xss.template-injection"
+  - "typescript.react.security.react-dangerously-set-innerhtml"
+
+# Bandit 테스트 ID 매핑 (Python 전용)
+bandit_test_ids:
+  - "B701"  # jinja2 templates without autoescape
+  - "B702"  # use of mako templates
+  - "B703"  # potential XSS on mark_safe
+
+# 취약한 패턴 예시
+vulnerable_patterns:
+  python:
+    - "return HttpResponse(user_input)"
+    - "render_template_string(user_input)"
+    - "Markup(user_input)"
+    - "mark_safe(user_input)"
+  java:
+    - "response.getWriter().write(userInput)"
+    - "out.println(request.getParameter(\"data\"))"
+  javascript:
+    - "element.innerHTML = userInput"
+    - "document.write(userInput)"
+    - "dangerouslySetInnerHTML={{__html: userInput}}"
+
+# 수정 권장사항
+remediation:
+  ko: |
+    출력 시 적절한 이스케이프/인코딩을 적용하세요:
+    - Python (Django): {{ variable|escape }} 또는 자동 이스케이프 활성화
+    - Python (Flask): Markup.escape(user_input) 사용
+    - Java: OWASP Java Encoder 라이브러리 사용
+    - JavaScript: textContent 사용 또는 DOMPurify로 sanitize
+
+    Content Security Policy (CSP) 헤더 설정도 권장합니다.
+  en: |
+    Apply proper escaping/encoding on output:
+    - Python (Django): {{ variable|escape }} or enable auto-escaping
+    - Python (Flask): Use Markup.escape(user_input)
+    - Java: Use OWASP Java Encoder library
+    - JavaScript: Use textContent or sanitize with DOMPurify
+
+    Setting Content Security Policy (CSP) headers is also recommended.
+
+# 참조 자료
+references:
+  - https://www.kisa.or.kr/public/laws/laws3.jsp
+  - https://cwe.mitre.org/data/definitions/79.html
+  - https://owasp.org/www-community/attacks/xss/
+  - https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html
+
+# CWE/OWASP 매핑
+cwe_ids:
+  - "CWE-79"  # Improper Neutralization of Input During Web Page Generation
+
+owasp_ids:
+  - "A03:2021"  # Injection
