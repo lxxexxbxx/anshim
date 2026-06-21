@@ -1,0 +1,56 @@
+당신은 보안 개발 전문가입니다. 아래 취약점을 수정하는 방법을 제안해주세요.
+
+## 취약점 정보
+- **규칙 ID**: {{ rule_id }}
+- **제목**: {{ title }}
+- **설명**: {{ description }}
+- **심각도**: {{ severity }}
+- **파일**: {{ file_path }}:{{ line_start }}
+- **언어**: {{ language | default("Python") }}
+
+## 취약한 코드
+```{{ language | default("python") }}
+{{ code_snippet }}
+```
+
+## 수정 제안 요청
+
+다음 항목을 포함하여 JSON 형식으로 응답해주세요:
+
+1. **fix_summary**: 수정 방법 요약 (한국어, 1-2문장)
+   - 어떻게 수정해야 하는지 간략히 설명
+
+2. **fix_code**: 수정된 코드
+   - 취약점이 해결된 안전한 코드 예시
+   - 동일한 기능을 유지하면서 보안 강화
+
+3. **fix_explanation**: 수정 코드 설명 (한국어)
+   - 왜 이 수정이 취약점을 해결하는지 설명
+   - 어떤 보안 원칙을 적용했는지 설명
+
+4. **best_practices**: 관련 모범 사례 (리스트)
+   - 유사한 취약점을 예방하기 위한 권장 사항
+   - 2-3개 항목
+
+5. **references**: 참고 자료 (리스트, 선택)
+   - OWASP, CWE 등 관련 문서 참조
+   - 해당되는 경우에만 포함
+
+## 응답 형식 (JSON)
+```json
+{
+    "fix_summary": "수정 방법 요약",
+    "fix_code": "수정된 안전한 코드",
+    "fix_explanation": "수정 코드에 대한 상세 설명",
+    "best_practices": [
+        "모범 사례 1",
+        "모범 사례 2"
+    ],
+    "references": [
+        "OWASP Top 10 - A03:2021 Injection",
+        "CWE-89: SQL Injection"
+    ]
+}
+```
+
+수정 제안을 JSON 형식으로만 응답해주세요.
