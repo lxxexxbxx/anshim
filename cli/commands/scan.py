@@ -10,10 +10,12 @@ from typing import Optional
 
 import typer
 from rich.console import Console
+from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
-from anshim.core.analyzers import RuleBasedAnalyzer, ScanSummary
+from anshim.core.analyzers import LLMAnalyzer, RuleBasedAnalyzer, ScanSummary
+from anshim.core.models import OllamaClient, get_recommended_model
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -26,12 +28,12 @@ SEVERITY_COLORS: dict[str, str] = {
     "low": "blue",
 }
 
-# 심각도별 이모지
-SEVERITY_EMOJI: dict[str, str] = {
-    "critical": "[red]●[/red]",
-    "high": "[orange1]●[/orange1]",
-    "medium": "[yellow]●[/yellow]",
-    "low": "[blue]●[/blue]",
+# 심각도별 표시
+SEVERITY_MARKER: dict[str, str] = {
+    "critical": "[red]*[/red]",
+    "high": "[orange1]*[/orange1]",
+    "medium": "[yellow]*[/yellow]",
+    "low": "[blue]*[/blue]",
 }
 
 
@@ -119,22 +121,23 @@ def scan_command(
     compliance_list = [c.strip().lower() for c in compliance.split(",")]
     console.print(f"컴플라이언스: [green]{', '.join(compliance_list)}[/green]")
 
+    # 모델 결정 (지정되지 않으면 기본 추천 모델 사용)
+    selected_model = model or get_recommended_model().name
+
     # 분석 모드 표시
     if rule_only:
         console.print("분석 모드: [yellow]규칙 기반만 (Semgrep/Bandit)[/yellow]")
     elif llm_only:
         console.print("분석 모드: [yellow]LLM만[/yellow]")
-        console.print("[red]LLM 분석은 Sprint 2에서 구현 예정입니다.[/red]")
-        raise typer.Exit(1)
+        console.print(f"LLM 모델: [cyan]{selected_model}[/cyan]")
     else:
         console.print("분석 모드: [yellow]하이브리드 (규칙 + LLM)[/yellow]")
-        if model:
-            console.print(f"LLM 모델: [cyan]{model}[/cyan]")
-        console.print("[dim]※ LLM 분석은 Sprint 2에서 구현 예정[/dim]")
+        console.print(f"LLM 모델: [cyan]{selected_model}[/cyan]")
 
     console.print()
 
     # 규칙 기반 분석 실행
+    summary: Optional[ScanSummary] = None
     if not llm_only:
         summary = _run_rule_based_analysis(target, verbose)
 
@@ -142,7 +145,12 @@ def scan_command(
         if severity:
             summary = _filter_by_severity(summary, severity)
 
-        # 결과 출력
+    # LLM 분석 실행 (rule_only가 아닌 경우)
+    if not rule_only and summary and summary.results:
+        summary = _run_llm_analysis(summary, selected_model, verbose)
+
+    # 결과 출력
+    if summary:
         _print_results(summary, verbose)
 
         # 리포트 생성 안내
@@ -180,11 +188,74 @@ def _run_rule_based_analysis(target: Path, verbose: bool) -> ScanSummary:
         TextColumn("[progress.description]{task.description}"),
         console=console,
     ) as progress:
-        task = progress.add_task("[cyan]코드 분석 중...", total=None)
+        task = progress.add_task("[cyan]규칙 기반 분석 중...", total=None)
         summary = analyzer.analyze(target)
         progress.update(task, completed=True)
 
     return summary
+
+
+def _run_llm_analysis(
+    summary: ScanSummary,
+    model: str,
+    verbose: bool,
+) -> ScanSummary:
+    """LLM 분석 실행.
+
+    Args:
+        summary: 규칙 기반 분석 결과.
+        model: 사용할 LLM 모델.
+        verbose: 상세 출력 여부.
+
+    Returns:
+        LLM 분석이 추가된 스캔 요약.
+    """
+    # Ollama 실행 확인
+    client = OllamaClient()
+    if not client.is_running():
+        console.print("[yellow]LLM 분석 스킵 (Ollama 미실행)[/yellow]")
+        console.print("[dim]Ollama 시작: ollama serve[/dim]")
+        console.print()
+        return summary
+
+    # LLM 분석기 생성
+    llm_analyzer = LLMAnalyzer(model=model, ollama_client=client)
+
+    # 분석 실행 (Progress 표시)
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task(
+            f"[cyan]LLM 심층 분석 중 ({len(summary.results)}개 취약점)...",
+            total=None,
+        )
+
+        # 배치 분석 실행
+        analyzed_results = llm_analyzer.analyze_batch(
+            summary.results,
+            max_concurrent=2,  # 동시 실행 제한
+            timeout=90,  # 개별 타임아웃
+        )
+
+        progress.update(task, completed=True)
+
+    # False Positive 필터링
+    filtered_results = llm_analyzer.filter_false_positives(analyzed_results)
+    fp_count = len(analyzed_results) - len(filtered_results)
+
+    if fp_count > 0:
+        console.print(f"[dim]False Positive 제거: {fp_count}개[/dim]")
+
+    # 새로운 ScanSummary 생성
+    return ScanSummary(
+        target_path=summary.target_path,
+        total_files=summary.total_files,
+        scanned_files=summary.scanned_files,
+        results=filtered_results,
+        duration_seconds=summary.duration_seconds,
+    )
 
 
 def _filter_by_severity(summary: ScanSummary, severity: str) -> ScanSummary:
@@ -229,19 +300,19 @@ def _print_results(summary: ScanSummary, verbose: bool) -> None:
     stats_table.add_column("Count", justify="right")
 
     stats_table.add_row(
-        f"{SEVERITY_EMOJI['critical']} Critical",
+        f"{SEVERITY_MARKER['critical']} Critical",
         f"[red bold]{summary.critical_count}[/red bold]"
     )
     stats_table.add_row(
-        f"{SEVERITY_EMOJI['high']} High",
+        f"{SEVERITY_MARKER['high']} High",
         f"[orange1]{summary.high_count}[/orange1]"
     )
     stats_table.add_row(
-        f"{SEVERITY_EMOJI['medium']} Medium",
+        f"{SEVERITY_MARKER['medium']} Medium",
         f"[yellow]{summary.medium_count}[/yellow]"
     )
     stats_table.add_row(
-        f"{SEVERITY_EMOJI['low']} Low",
+        f"{SEVERITY_MARKER['low']} Low",
         f"[blue]{summary.low_count}[/blue]"
     )
     stats_table.add_row("", "")
@@ -310,7 +381,7 @@ def _print_results(summary: ScanSummary, verbose: bool) -> None:
         remaining = len(sorted_results) - max_display
         console.print(f"\n[dim]... {remaining}개 항목 생략 (--verbose로 전체 보기)[/dim]")
 
-    # 코드 스니펫 출력 (verbose 모드)
+    # 코드 스니펫 및 LLM 분석 결과 출력 (verbose 모드)
     if verbose and sorted_results:
         console.print("\n[bold]상세 정보[/bold]")
         for i, result in enumerate(sorted_results[:10], 1):  # 최대 10개
@@ -319,7 +390,34 @@ def _print_results(summary: ScanSummary, verbose: bool) -> None:
             console.print(f"   파일: {result.file_path}:{result.line_start}")
             console.print(f"   규칙: {result.rule_id}")
             console.print(f"   출처: {result.source}")
+
             if result.code_snippet:
                 console.print("   코드:")
                 for line in result.code_snippet.strip().split("\n")[:5]:
                     console.print(f"   [dim]{line}[/dim]")
+
+            # LLM 분석 결과 출력
+            llm_analysis = getattr(result, "llm_analysis", None)
+            if llm_analysis:
+                console.print(f"\n   [cyan]LLM 분석:[/cyan] {llm_analysis}")
+
+            attack_scenario = getattr(result, "attack_scenario", None)
+            if attack_scenario and isinstance(attack_scenario, dict):
+                attack_name = attack_scenario.get("attack_name", "")
+                if attack_name:
+                    console.print(f"   [red]공격 유형:[/red] {attack_name}")
+                attack_steps = attack_scenario.get("attack_steps", [])
+                if attack_steps:
+                    console.print("   [red]공격 단계:[/red]")
+                    for step in attack_steps[:3]:
+                        console.print(f"      - {step}")
+
+            remediation = getattr(result, "remediation", None)
+            if remediation and isinstance(remediation, dict):
+                fix_summary = remediation.get("fix_summary", "")
+                if fix_summary:
+                    console.print(f"   [green]수정 제안:[/green] {fix_summary}")
+
+            isms_relevance = getattr(result, "isms_relevance", None)
+            if isms_relevance:
+                console.print(f"   [magenta]ISMS 관련:[/magenta] {isms_relevance}")
