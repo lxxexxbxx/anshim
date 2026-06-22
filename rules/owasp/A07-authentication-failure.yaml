@@ -1,0 +1,76 @@
+# OWASP Top 10 2021 - A07: Identification and Authentication Failures
+id: A07-authentication-failure
+title: 인증 및 식별 실패 (Identification and Authentication Failures)
+description: |
+  사용자 신원 확인, 인증, 세션 관리가 부적절하게 구현된 취약점.
+  취약한 비밀번호 정책, 세션 고정, 자격증명 노출 등이 포함됩니다.
+category: "OWASP Top 10"
+subcategory: "A07:2021 Identification and Authentication Failures"
+
+applicable_to:
+  - owasp
+  - isms
+  - isms-p
+
+severity: high
+
+languages:
+  - python
+  - java
+  - javascript
+
+semgrep_rule_ids:
+  - "python.lang.security.audit.hardcoded-password"
+  - "python.django.security.audit.hardcoded-secret-key"
+  - "python.flask.security.audit.hardcoded-secret-key"
+  - "java.lang.security.audit.hardcoded-credentials"
+  - "javascript.lang.security.audit.hardcoded-secret"
+
+bandit_test_ids:
+  - "B105"  # hardcoded_password_string
+  - "B106"  # hardcoded_password_funcarg
+  - "B107"  # hardcoded_password_default
+
+vulnerable_patterns:
+  python:
+    - "password = \"admin123\""
+    - "SECRET_KEY = \"mysecretkey\""
+    - "authenticate(username, \"password\")"
+  java:
+    - "String password = \"admin123\";"
+    - "private static final String SECRET = \"key\";"
+  javascript:
+    - "const password = 'admin123';"
+    - "jwt.sign(payload, 'secretkey')"
+
+remediation:
+  ko: |
+    인증 실패를 방지하려면:
+    1. 강력한 비밀번호 정책 적용 (최소 12자, 복잡성 요구)
+    2. 다단계 인증(MFA) 구현
+    3. 비밀번호 해싱에 bcrypt, argon2 사용
+    4. 자격증명을 코드에 하드코딩하지 않음
+    5. 환경 변수 또는 보안 저장소 사용
+    6. 세션 타임아웃 및 재인증 구현
+  en: |
+    To prevent authentication failures:
+    1. Implement strong password policies (min 12 chars, complexity)
+    2. Implement multi-factor authentication (MFA)
+    3. Use bcrypt, argon2 for password hashing
+    4. Never hardcode credentials in code
+    5. Use environment variables or secure vaults
+    6. Implement session timeout and re-authentication
+
+references:
+  - https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/
+  - https://cwe.mitre.org/data/definitions/287.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
+
+cwe_ids:
+  - "CWE-287"  # Improper Authentication
+  - "CWE-798"  # Use of Hard-coded Credentials
+  - "CWE-384"  # Session Fixation
+  - "CWE-521"  # Weak Password Requirements
+
+owasp_ids:
+  - "A07:2021"

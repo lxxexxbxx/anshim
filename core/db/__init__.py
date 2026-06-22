@@ -11,6 +11,11 @@ from anshim.core.db.models import (
     SeverityLevel,
     Vulnerability,
 )
+from anshim.core.db.repository import (
+    ScanRepository,
+    VulnerabilityRepository,
+    save_hybrid_result,
+)
 
 __all__ = [
     "get_db",
@@ -23,4 +28,7 @@ __all__ = [
     "SeverityLevel",
     "ComplianceType",
     "AnalysisType",
+    "ScanRepository",
+    "VulnerabilityRepository",
+    "save_hybrid_result",
 ]

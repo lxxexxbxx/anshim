@@ -11,11 +11,12 @@ from typing import Optional
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
 from rich.table import Table
 
-from anshim.core.analyzers import LLMAnalyzer, RuleBasedAnalyzer, ScanSummary
-from anshim.core.models import OllamaClient, get_recommended_model
+from anshim.core.analyzers import HybridAnalyzer, HybridScanResult
+from anshim.core.db import save_hybrid_result
+from anshim.core.models import get_recommended_model
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -95,6 +96,11 @@ def scan_command(
         "--llm-only",
         help="LLM 분석만 수행 (규칙 기반 분석 제외)",
     ),
+    no_db: bool = typer.Option(
+        False,
+        "--no-db",
+        help="DB 저장 건너뛰기",
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -136,162 +142,118 @@ def scan_command(
 
     console.print()
 
-    # 규칙 기반 분석 실행
-    summary: Optional[ScanSummary] = None
-    if not llm_only:
-        summary = _run_rule_based_analysis(target, verbose)
-
-        # 심각도 필터 적용
-        if severity:
-            summary = _filter_by_severity(summary, severity)
-
-    # LLM 분석 실행 (rule_only가 아닌 경우)
-    if not rule_only and summary and summary.results:
-        summary = _run_llm_analysis(summary, selected_model, verbose)
-
-    # 결과 출력
-    if summary:
-        _print_results(summary, verbose)
-
-        # 리포트 생성 안내
-        if output:
-            console.print(f"\n[dim]리포트 위치: {output}[/dim]")
-
-        # 종료 코드 결정 (critical/high 이슈 있으면 1)
-        if summary.critical_count > 0 or summary.high_count > 0:
-            raise typer.Exit(1)
-
-
-def _run_rule_based_analysis(target: Path, verbose: bool) -> ScanSummary:
-    """규칙 기반 분석 실행.
-
-    Args:
-        target: 분석 대상 경로.
-        verbose: 상세 출력 여부.
-
-    Returns:
-        스캔 요약 결과.
-    """
-    analyzer = RuleBasedAnalyzer()
+    # HybridAnalyzer 생성
+    analyzer = HybridAnalyzer(
+        model=selected_model,
+        compliance_types=compliance_list,
+    )
 
     # 분석기 상태 확인
-    status = analyzer.get_status()
     if verbose:
+        status = analyzer.get_status()
         console.print("[dim]분석기 상태:[/dim]")
-        console.print(f"  Semgrep: {'[green]사용 가능[/green]' if status['semgrep'] else '[red]미설치[/red]'}")
-        console.print(f"  Bandit: {'[green]사용 가능[/green]' if status['bandit'] else '[red]미설치[/red]'}")
+        console.print(f"  Semgrep: {'[green]사용 가능[/green]' if status.get('semgrep') else '[red]미설치[/red]'}")
+        console.print(f"  Bandit: {'[green]사용 가능[/green]' if status.get('bandit') else '[red]미설치[/red]'}")
+        console.print(f"  Ollama: {'[green]실행 중[/green]' if status.get('ollama') else '[yellow]미실행[/yellow]'}")
         console.print()
 
-    # 분석 실행 (Progress 표시)
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task("[cyan]규칙 기반 분석 중...", total=None)
-        summary = analyzer.analyze(target)
-        progress.update(task, completed=True)
+    # 하이브리드 분석 실행
+    result = _run_hybrid_analysis(
+        analyzer=analyzer,
+        target=target,
+        skip_llm=rule_only,
+        verbose=verbose,
+    )
 
-    return summary
+    # 심각도 필터 적용
+    if severity:
+        result = result.filter_by_severity(severity)
+        console.print(f"[dim]심각도 필터 적용: {severity}[/dim]")
+
+    # DB 저장
+    scan_id = result.scan_id
+    if not no_db:
+        try:
+            scan_id = save_hybrid_result(result)
+            console.print(f"\n[dim]스캔 ID: [cyan]{scan_id[:8]}[/cyan] — anshim report show {scan_id[:8]}[/dim]")
+        except Exception as e:
+            logger.warning("DB 저장 실패: %s", e)
+            console.print(f"[yellow]DB 저장 실패: {e}[/yellow]")
+
+    # 결과 출력
+    _print_results(result, verbose)
+
+    # 리포트 생성 안내
+    if output:
+        console.print(f"\n[dim]리포트 위치: {output}[/dim]")
+
+    # 종료 코드 결정 (critical/high 이슈 있으면 1)
+    if result.critical_count > 0 or result.high_count > 0:
+        raise typer.Exit(1)
 
 
-def _run_llm_analysis(
-    summary: ScanSummary,
-    model: str,
+def _run_hybrid_analysis(
+    analyzer: HybridAnalyzer,
+    target: Path,
+    skip_llm: bool,
     verbose: bool,
-) -> ScanSummary:
-    """LLM 분석 실행.
+) -> HybridScanResult:
+    """하이브리드 분석 실행.
 
     Args:
-        summary: 규칙 기반 분석 결과.
-        model: 사용할 LLM 모델.
+        analyzer: 하이브리드 분석기.
+        target: 분석 대상 경로.
+        skip_llm: LLM 분석 스킵 여부.
         verbose: 상세 출력 여부.
 
     Returns:
-        LLM 분석이 추가된 스캔 요약.
+        하이브리드 스캔 결과.
     """
-    # Ollama 실행 확인
-    client = OllamaClient()
-    if not client.is_running():
-        console.print("[yellow]LLM 분석 스킵 (Ollama 미실행)[/yellow]")
-        console.print("[dim]Ollama 시작: ollama serve[/dim]")
-        console.print()
-        return summary
-
-    # LLM 분석기 생성
-    llm_analyzer = LLMAnalyzer(model=model, ollama_client=client)
-
-    # 분석 실행 (Progress 표시)
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TextColumn("{task.percentage:>3.0f}%"),
         console=console,
     ) as progress:
-        task = progress.add_task(
-            f"[cyan]LLM 심층 분석 중 ({len(summary.results)}개 취약점)...",
-            total=None,
+        task = progress.add_task("[cyan]분석 중...", total=100)
+
+        def update_progress(stage: str, pct: float):
+            progress.update(task, description=f"[cyan]{stage}", completed=int(pct * 100))
+
+        result = analyzer.analyze(
+            target=target,
+            skip_llm=skip_llm,
+            llm_timeout=90,
+            progress_callback=update_progress,
         )
 
-        # 배치 분석 실행
-        analyzed_results = llm_analyzer.analyze_batch(
-            summary.results,
-            max_concurrent=2,  # 동시 실행 제한
-            timeout=90,  # 개별 타임아웃
-        )
+        progress.update(task, completed=100)
 
-        progress.update(task, completed=True)
+    # LLM 분석 여부 및 FP 제거 수 표시
+    if result.llm_enabled:
+        console.print(f"[dim]LLM 분석 완료 (모델: {result.model_used})[/dim]")
+        if result.false_positives_removed > 0:
+            console.print(f"[dim]False Positive 제거: {result.false_positives_removed}개[/dim]")
+    elif not skip_llm:
+        console.print("[yellow]LLM 분석 스킵 (Ollama 미실행)[/yellow]")
+        console.print("[dim]Ollama 시작: ollama serve[/dim]")
 
-    # False Positive 필터링
-    filtered_results = llm_analyzer.filter_false_positives(analyzed_results)
-    fp_count = len(analyzed_results) - len(filtered_results)
-
-    if fp_count > 0:
-        console.print(f"[dim]False Positive 제거: {fp_count}개[/dim]")
-
-    # 새로운 ScanSummary 생성
-    return ScanSummary(
-        target_path=summary.target_path,
-        total_files=summary.total_files,
-        scanned_files=summary.scanned_files,
-        results=filtered_results,
-        duration_seconds=summary.duration_seconds,
-    )
+    return result
 
 
-def _filter_by_severity(summary: ScanSummary, severity: str) -> ScanSummary:
-    """심각도별 필터링.
-
-    Args:
-        summary: 원본 스캔 요약.
-        severity: 필터할 심각도.
-
-    Returns:
-        필터링된 스캔 요약.
-    """
-    severity = severity.lower()
-    filtered_results = [r for r in summary.results if r.severity == severity]
-
-    return ScanSummary(
-        target_path=summary.target_path,
-        total_files=summary.total_files,
-        scanned_files=summary.scanned_files,
-        results=filtered_results,
-        duration_seconds=summary.duration_seconds,
-    )
-
-
-def _print_results(summary: ScanSummary, verbose: bool) -> None:
+def _print_results(result: HybridScanResult, verbose: bool) -> None:
     """결과 출력.
 
     Args:
-        summary: 스캔 요약 결과.
+        result: 하이브리드 스캔 결과.
         verbose: 상세 출력 여부.
     """
     # 요약 통계
     console.print("\n[bold]스캔 결과 요약[/bold]")
-    console.print(f"  분석 대상: {summary.target_path}")
-    console.print(f"  분석된 파일: {summary.scanned_files} / {summary.total_files}")
-    console.print(f"  소요 시간: {summary.duration_seconds:.2f}초")
+    console.print(f"  분석 대상: {result.target_path}")
+    console.print(f"  분석된 파일: {result.scanned_files} / {result.total_files}")
+    console.print(f"  소요 시간: {result.duration_seconds:.2f}초")
     console.print()
 
     # 심각도별 통계
@@ -301,30 +263,37 @@ def _print_results(summary: ScanSummary, verbose: bool) -> None:
 
     stats_table.add_row(
         f"{SEVERITY_MARKER['critical']} Critical",
-        f"[red bold]{summary.critical_count}[/red bold]"
+        f"[red bold]{result.critical_count}[/red bold]"
     )
     stats_table.add_row(
         f"{SEVERITY_MARKER['high']} High",
-        f"[orange1]{summary.high_count}[/orange1]"
+        f"[orange1]{result.high_count}[/orange1]"
     )
     stats_table.add_row(
         f"{SEVERITY_MARKER['medium']} Medium",
-        f"[yellow]{summary.medium_count}[/yellow]"
+        f"[yellow]{result.medium_count}[/yellow]"
     )
     stats_table.add_row(
         f"{SEVERITY_MARKER['low']} Low",
-        f"[blue]{summary.low_count}[/blue]"
+        f"[blue]{result.low_count}[/blue]"
     )
     stats_table.add_row("", "")
     stats_table.add_row(
         "[bold]Total[/bold]",
-        f"[bold]{summary.total_issues}[/bold]"
+        f"[bold]{result.total_issues}[/bold]"
     )
 
     console.print(stats_table)
 
+    # 컴플라이언스별 통계 출력
+    if result.compliance_summary:
+        console.print("\n[bold]컴플라이언스별 통계[/bold]")
+        for comp_type, stats in result.compliance_summary.items():
+            if stats["total"] > 0:
+                console.print(f"  {comp_type.upper()}: {stats['total']}개")
+
     # 이슈가 없으면 종료
-    if summary.total_issues == 0:
+    if result.total_issues == 0:
         console.print("\n[green bold]취약점이 발견되지 않았습니다.[/green bold]")
         return
 
@@ -336,42 +305,43 @@ def _print_results(summary: ScanSummary, verbose: bool) -> None:
     results_table.add_column("파일", max_width=40)
     results_table.add_column("라인", width=6, justify="right")
     results_table.add_column("규칙", max_width=30)
-    results_table.add_column("설명", max_width=50)
+    results_table.add_column("컴플라이언스", max_width=20)
 
     # 심각도 순으로 정렬 (critical > high > medium > low)
     severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
     sorted_results = sorted(
-        summary.results,
-        key=lambda r: severity_order.get(r.severity, 4)
+        result.results,
+        key=lambda r: severity_order.get(r.severity.lower(), 4)
     )
 
     # 최대 표시 개수 제한 (verbose 아닌 경우)
     max_display = len(sorted_results) if verbose else min(20, len(sorted_results))
 
-    for result in sorted_results[:max_display]:
-        color = SEVERITY_COLORS.get(result.severity, "white")
+    for res in sorted_results[:max_display]:
+        color = SEVERITY_COLORS.get(res.severity.lower(), "white")
 
         # 파일 경로 축약
-        file_path = result.file_path
+        file_path = res.file_path
         if len(file_path) > 38:
             file_path = "..." + file_path[-35:]
 
         # 규칙 ID 축약
-        rule_id = result.rule_id
+        rule_id = res.rule_id
         if len(rule_id) > 28:
             rule_id = rule_id[:25] + "..."
 
-        # 제목 축약
-        title = result.title
-        if len(title) > 48:
-            title = title[:45] + "..."
+        # 컴플라이언스 매핑 표시
+        compliance_str = ""
+        if res.compliance_mappings:
+            comp_types = list(set(m.compliance_type.upper() for m in res.compliance_mappings))[:2]
+            compliance_str = ", ".join(comp_types)
 
         results_table.add_row(
-            f"[{color}]{result.severity.upper()}[/{color}]",
+            f"[{color}]{res.severity.upper()}[/{color}]",
             file_path,
-            str(result.line_start),
+            str(res.line_start),
             rule_id,
-            title,
+            compliance_str,
         )
 
     console.print(results_table)
@@ -384,40 +354,45 @@ def _print_results(summary: ScanSummary, verbose: bool) -> None:
     # 코드 스니펫 및 LLM 분석 결과 출력 (verbose 모드)
     if verbose and sorted_results:
         console.print("\n[bold]상세 정보[/bold]")
-        for i, result in enumerate(sorted_results[:10], 1):  # 최대 10개
-            color = SEVERITY_COLORS.get(result.severity, "white")
-            console.print(f"\n[{color}]#{i} [{result.severity.upper()}] {result.title}[/{color}]")
-            console.print(f"   파일: {result.file_path}:{result.line_start}")
-            console.print(f"   규칙: {result.rule_id}")
-            console.print(f"   출처: {result.source}")
+        for i, res in enumerate(sorted_results[:10], 1):  # 최대 10개
+            color = SEVERITY_COLORS.get(res.severity.lower(), "white")
+            console.print(f"\n[{color}]#{i} [{res.severity.upper()}] {res.title}[/{color}]")
+            console.print(f"   파일: {res.file_path}:{res.line_start}")
+            console.print(f"   규칙: {res.rule_id}")
+            console.print(f"   출처: {res.source}")
 
-            if result.code_snippet:
+            # 컴플라이언스 매핑 상세
+            if res.compliance_mappings:
+                console.print("   컴플라이언스 매핑:")
+                for mapping in res.compliance_mappings[:3]:
+                    console.print(
+                        f"      - [{mapping.compliance_type.upper()}] "
+                        f"{mapping.compliance_id}: {mapping.compliance_title}"
+                    )
+
+            if res.code_snippet:
                 console.print("   코드:")
-                for line in result.code_snippet.strip().split("\n")[:5]:
+                for line in res.code_snippet.strip().split("\n")[:5]:
                     console.print(f"   [dim]{line}[/dim]")
 
             # LLM 분석 결과 출력
-            llm_analysis = getattr(result, "llm_analysis", None)
-            if llm_analysis:
-                console.print(f"\n   [cyan]LLM 분석:[/cyan] {llm_analysis}")
+            if res.llm_analysis:
+                console.print(f"\n   [cyan]LLM 분석:[/cyan] {res.llm_analysis}")
 
-            attack_scenario = getattr(result, "attack_scenario", None)
-            if attack_scenario and isinstance(attack_scenario, dict):
-                attack_name = attack_scenario.get("attack_name", "")
+            if res.attack_scenario and isinstance(res.attack_scenario, dict):
+                attack_name = res.attack_scenario.get("attack_name", "")
                 if attack_name:
                     console.print(f"   [red]공격 유형:[/red] {attack_name}")
-                attack_steps = attack_scenario.get("attack_steps", [])
+                attack_steps = res.attack_scenario.get("attack_steps", [])
                 if attack_steps:
                     console.print("   [red]공격 단계:[/red]")
                     for step in attack_steps[:3]:
                         console.print(f"      - {step}")
 
-            remediation = getattr(result, "remediation", None)
-            if remediation and isinstance(remediation, dict):
-                fix_summary = remediation.get("fix_summary", "")
+            if res.remediation and isinstance(res.remediation, dict):
+                fix_summary = res.remediation.get("fix_summary", "")
                 if fix_summary:
                     console.print(f"   [green]수정 제안:[/green] {fix_summary}")
 
-            isms_relevance = getattr(result, "isms_relevance", None)
-            if isms_relevance:
-                console.print(f"   [magenta]ISMS 관련:[/magenta] {isms_relevance}")
+            if res.isms_relevance:
+                console.print(f"   [magenta]ISMS 관련:[/magenta] {res.isms_relevance}")
