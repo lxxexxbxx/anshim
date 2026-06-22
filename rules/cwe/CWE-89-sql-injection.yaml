@@ -1,0 +1,86 @@
+# CWE-89: Improper Neutralization of Special Elements used in an SQL Command (SQL Injection)
+id: CWE-89-sql-injection
+title: SQL 인젝션 (SQL Injection)
+description: |
+  사용자 입력값이 SQL 쿼리에 직접 포함되어 공격자가 데이터베이스 쿼리를 조작할 수 있는 취약점.
+  데이터 유출, 인증 우회, 데이터 변조/삭제, 원격 코드 실행 등의 피해가 발생할 수 있습니다.
+category: "CWE Top 25"
+subcategory: "CWE-89 SQL Injection"
+
+applicable_to:
+  - cwe
+  - owasp
+  - isms
+  - isms-p
+
+severity: critical
+
+languages:
+  - python
+  - java
+  - javascript
+
+semgrep_rule_ids:
+  - "python.django.security.injection.sql.sql-injection-using-raw"
+  - "python.flask.security.injection.sql-injection"
+  - "python.lang.security.audit.formatted-sql-query"
+  - "python.sqlalchemy.security.sqlalchemy-execute-raw-query"
+  - "java.lang.security.audit.sqli.jdbc-sqli"
+  - "java.lang.security.audit.sqli.spring-sqli"
+  - "javascript.sequelize.security.audit.sequelize-raw-query"
+  - "javascript.express.security.audit.raw-sql"
+
+bandit_test_ids:
+  - "B608"  # SQL injection via string formatting
+  - "B610"  # Django extra used with string formatting
+  - "B611"  # Django RawSQL used with string formatting
+
+vulnerable_patterns:
+  python:
+    - "cursor.execute(f\"SELECT * FROM users WHERE id = {user_id}\")"
+    - "cursor.execute(\"SELECT * FROM users WHERE name = '\" + name + \"'\")"
+    - "Model.objects.raw(f\"SELECT * FROM ... WHERE id = {id}\")"
+  java:
+    - "stmt.executeQuery(\"SELECT * FROM users WHERE id = \" + id);"
+    - "connection.createStatement().executeQuery(sql + userInput);"
+  javascript:
+    - "db.query(`SELECT * FROM users WHERE id = ${userId}`);"
+    - "sequelize.query(\"SELECT * FROM users WHERE id = \" + id);"
+
+remediation:
+  ko: |
+    SQL 인젝션을 방지하려면:
+
+    1. 파라미터화된 쿼리(Prepared Statement) 사용:
+       - Python: cursor.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+       - Java: PreparedStatement ps = conn.prepareStatement("SELECT * FROM users WHERE id = ?"); ps.setInt(1, id);
+       - JavaScript: db.query("SELECT * FROM users WHERE id = ?", [userId]);
+
+    2. ORM 사용 (Django ORM, SQLAlchemy, JPA 등)
+
+    3. 입력값 검증:
+       - 화이트리스트 기반 검증
+       - 정규표현식으로 허용 문자만 필터링
+
+    4. 최소 권한 DB 계정 사용
+
+    5. 에러 메시지에 DB 정보 노출 금지
+  en: |
+    To prevent SQL injection:
+
+    1. Use parameterized queries (Prepared Statements)
+    2. Use ORM (Django ORM, SQLAlchemy, JPA, etc.)
+    3. Validate input with whitelist approach
+    4. Use least privilege database accounts
+    5. Don't expose database info in error messages
+
+references:
+  - https://cwe.mitre.org/data/definitions/89.html
+  - https://owasp.org/www-community/attacks/SQL_Injection
+  - https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html
+
+cwe_ids:
+  - "CWE-89"
+
+owasp_ids:
+  - "A03:2021"

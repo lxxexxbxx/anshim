@@ -1,0 +1,77 @@
+# OWASP Top 10 2021 - A02: Cryptographic Failures
+id: A02-cryptographic-failures
+title: 암호화 실패 (Cryptographic Failures)
+description: |
+  민감한 데이터를 보호하기 위한 암호화가 없거나 부적절하게 구현된 취약점.
+  취약한 암호 알고리즘 사용, 하드코딩된 암호화 키, 평문 데이터 전송/저장 등이 포함됩니다.
+category: "OWASP Top 10"
+subcategory: "A02:2021 Cryptographic Failures"
+
+applicable_to:
+  - owasp
+  - isms
+  - isms-p
+
+severity: high
+
+languages:
+  - python
+  - java
+  - javascript
+
+semgrep_rule_ids:
+  - "python.cryptography.security.insecure-hash-md5"
+  - "python.cryptography.security.insecure-hash-sha1"
+  - "python.lang.security.audit.insecure-hash-algorithms"
+  - "java.lang.security.audit.crypto.weak-hash"
+  - "java.lang.security.audit.crypto.weak-cipher"
+  - "javascript.lang.security.audit.insecure-hash"
+
+bandit_test_ids:
+  - "B303"  # Use of insecure MD2, MD4, MD5, or SHA1 hash function
+  - "B304"  # Use of insecure cipher
+  - "B305"  # Use of insecure cipher mode
+  - "B324"  # hashlib.new insecure hash
+
+vulnerable_patterns:
+  python:
+    - "hashlib.md5("
+    - "hashlib.sha1("
+    - "DES.new("
+    - "AES.new(..., AES.MODE_ECB)"
+  java:
+    - "MessageDigest.getInstance(\"MD5\")"
+    - "Cipher.getInstance(\"DES\")"
+  javascript:
+    - "crypto.createHash('md5')"
+    - "crypto.createCipher('des')"
+
+remediation:
+  ko: |
+    암호화 실패를 방지하려면:
+    1. 최신 강력한 알고리즘 사용 (AES-256, SHA-256 이상)
+    2. 암호화 키를 코드에 하드코딩하지 않음
+    3. TLS 1.2 이상 사용
+    4. 비밀번호는 bcrypt, argon2 등 전용 해시 함수 사용
+    5. 암호화 키 관리 시스템(KMS) 활용
+  en: |
+    To prevent cryptographic failures:
+    1. Use modern strong algorithms (AES-256, SHA-256 or higher)
+    2. Never hardcode encryption keys in code
+    3. Use TLS 1.2 or higher
+    4. Use dedicated password hashing (bcrypt, argon2)
+    5. Use Key Management System (KMS)
+
+references:
+  - https://owasp.org/Top10/A02_2021-Cryptographic_Failures/
+  - https://cwe.mitre.org/data/definitions/327.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html
+
+cwe_ids:
+  - "CWE-327"  # Use of a Broken or Risky Cryptographic Algorithm
+  - "CWE-328"  # Reversible One-Way Hash
+  - "CWE-311"  # Missing Encryption of Sensitive Data
+  - "CWE-312"  # Cleartext Storage of Sensitive Information
+
+owasp_ids:
+  - "A02:2021"

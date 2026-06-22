@@ -1,0 +1,89 @@
+# CWE-79: Improper Neutralization of Input During Web Page Generation (Cross-site Scripting)
+id: CWE-79-xss
+title: 크로스사이트 스크립팅 (Cross-site Scripting, XSS)
+description: |
+  사용자 입력이 웹 페이지에 적절한 검증이나 이스케이핑 없이 포함되어
+  공격자의 스크립트가 다른 사용자 브라우저에서 실행될 수 있는 취약점.
+  세션 탈취, 피싱, 악성코드 배포 등의 피해가 발생할 수 있습니다.
+category: "CWE Top 25"
+subcategory: "CWE-79 Cross-site Scripting"
+
+applicable_to:
+  - cwe
+  - owasp
+  - isms
+  - isms-p
+
+severity: high
+
+languages:
+  - python
+  - java
+  - javascript
+
+semgrep_rule_ids:
+  - "python.django.security.audit.xss.xss"
+  - "python.flask.security.xss.xss"
+  - "python.lang.security.audit.xss"
+  - "java.lang.security.audit.xss"
+  - "javascript.browser.security.audit.xss"
+  - "javascript.express.security.xss"
+
+bandit_test_ids:
+  - "B701"  # jinja2 autoescape false
+  - "B702"  # mako templates
+
+vulnerable_patterns:
+  python:
+    - "return f\"<div>{user_input}</div>\""
+    - "render_template_string(user_input)"
+    - "{% autoescape false %}"
+  java:
+    - "out.println(\"<div>\" + userInput + \"</div>\");"
+    - "response.getWriter().write(userInput);"
+  javascript:
+    - "element.innerHTML = userInput;"
+    - "document.write(userInput);"
+    - "res.send(`<div>${userInput}</div>`);"
+
+remediation:
+  ko: |
+    XSS를 방지하려면:
+
+    1. 출력 인코딩/이스케이핑:
+       - HTML 컨텍스트: HTML 엔티티 인코딩
+       - JavaScript 컨텍스트: JavaScript 이스케이핑
+       - URL 컨텍스트: URL 인코딩
+
+    2. 템플릿 엔진의 자동 이스케이핑 활성화:
+       - Django: 기본 활성화
+       - Jinja2: autoescape=True
+       - React: JSX 기본 이스케이핑
+
+    3. CSP(Content Security Policy) 헤더 설정
+
+    4. HttpOnly, Secure 쿠키 속성 사용
+
+    5. innerHTML 대신 textContent 사용
+
+    6. 위험한 함수 사용 금지: eval(), document.write()
+  en: |
+    To prevent XSS:
+
+    1. Output encoding/escaping based on context
+    2. Enable auto-escaping in template engines
+    3. Implement Content Security Policy (CSP)
+    4. Use HttpOnly, Secure cookie attributes
+    5. Use textContent instead of innerHTML
+    6. Avoid dangerous functions: eval(), document.write()
+
+references:
+  - https://cwe.mitre.org/data/definitions/79.html
+  - https://owasp.org/www-community/attacks/xss/
+  - https://cheatsheetseries.owasp.org/cheatsheets/Cross_Site_Scripting_Prevention_Cheat_Sheet.html
+
+cwe_ids:
+  - "CWE-79"
+
+owasp_ids:
+  - "A03:2021"

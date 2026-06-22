@@ -1,0 +1,82 @@
+# OWASP Top 10 2021 - A03: Injection
+id: A03-injection
+title: 인젝션 (Injection)
+description: |
+  사용자 입력이 인터프리터로 전달되어 명령어나 쿼리의 일부로 실행되는 취약점.
+  SQL 인젝션, NoSQL 인젝션, OS 명령어 인젝션, LDAP 인젝션 등이 포함됩니다.
+category: "OWASP Top 10"
+subcategory: "A03:2021 Injection"
+
+applicable_to:
+  - owasp
+  - isms
+  - isms-p
+
+severity: critical
+
+languages:
+  - python
+  - java
+  - javascript
+
+semgrep_rule_ids:
+  - "python.lang.security.audit.formatted-sql-query"
+  - "python.sqlalchemy.security.sqlalchemy-execute-raw-query"
+  - "python.django.security.injection.sql"
+  - "python.flask.security.injection.sql-injection"
+  - "python.lang.security.audit.subprocess-shell-true"
+  - "java.lang.security.audit.sqli"
+  - "java.lang.security.audit.command-injection"
+  - "javascript.sequelize.security.audit.sequelize-raw-query"
+  - "javascript.lang.security.audit.command-injection"
+
+bandit_test_ids:
+  - "B602"  # subprocess_popen_with_shell_equals_true
+  - "B603"  # subprocess_without_shell_equals_true
+  - "B604"  # any_other_function_with_shell_equals_true
+  - "B605"  # start_process_with_a_shell
+  - "B606"  # start_process_with_no_shell
+  - "B607"  # start_process_with_partial_path
+  - "B608"  # hardcoded_sql_expressions
+
+vulnerable_patterns:
+  python:
+    - "cursor.execute(f\"SELECT * FROM ... WHERE id = {id}\")"
+    - "os.system(user_input)"
+    - "subprocess.call(cmd, shell=True)"
+  java:
+    - "stmt.executeQuery(\"SELECT * FROM users WHERE id = \" + id)"
+    - "Runtime.getRuntime().exec(userInput)"
+  javascript:
+    - "db.query(`SELECT * FROM users WHERE id = ${userId}`)"
+    - "child_process.exec(userInput)"
+
+remediation:
+  ko: |
+    인젝션을 방지하려면:
+    1. 파라미터화된 쿼리(Prepared Statement) 사용
+    2. ORM 사용 권장
+    3. 사용자 입력값 검증 및 이스케이프
+    4. OS 명령어 실행 시 화이트리스트 기반 검증
+    5. 최소 권한 원칙 적용 (DB 계정, 시스템 계정)
+  en: |
+    To prevent injection:
+    1. Use parameterized queries (Prepared Statements)
+    2. Use ORM when possible
+    3. Validate and escape user input
+    4. Use whitelist validation for OS command execution
+    5. Apply principle of least privilege
+
+references:
+  - https://owasp.org/Top10/A03_2021-Injection/
+  - https://cwe.mitre.org/data/definitions/89.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/SQL_Injection_Prevention_Cheat_Sheet.html
+
+cwe_ids:
+  - "CWE-89"   # SQL Injection
+  - "CWE-78"   # OS Command Injection
+  - "CWE-94"   # Code Injection
+  - "CWE-917"  # Expression Language Injection
+
+owasp_ids:
+  - "A03:2021"

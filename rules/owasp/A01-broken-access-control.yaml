@@ -1,0 +1,74 @@
+# OWASP Top 10 2021 - A01: Broken Access Control
+id: A01-broken-access-control
+title: 접근 제어 취약점 (Broken Access Control)
+description: |
+  권한이 없는 사용자가 제한된 리소스에 접근하거나 다른 사용자의 데이터를 조회/수정할 수 있는 취약점.
+  IDOR(Insecure Direct Object Reference), 권한 상승, 인가 우회 등이 포함됩니다.
+category: "OWASP Top 10"
+subcategory: "A01:2021 Broken Access Control"
+
+applicable_to:
+  - owasp
+  - isms
+  - isms-p
+
+severity: high
+
+languages:
+  - python
+  - java
+  - javascript
+
+semgrep_rule_ids:
+  - "python.django.security.audit.unvalidated-redirect"
+  - "python.flask.security.audit.path-traversal"
+  - "java.lang.security.audit.path-traversal"
+  - "javascript.express.security.audit.path-traversal"
+  - "python.django.security.injection.path-traversal"
+
+bandit_test_ids:
+  - "B301"  # pickle
+  - "B302"  # marshal
+  - "B310"  # urllib_urlopen
+
+vulnerable_patterns:
+  python:
+    - "open(user_input)"
+    - "os.path.join(base, user_input)"
+    - "redirect(request.args.get('next'))"
+  java:
+    - "new File(userInput)"
+    - "request.getRequestDispatcher(userInput)"
+  javascript:
+    - "fs.readFile(userInput)"
+    - "res.redirect(req.query.next)"
+
+remediation:
+  ko: |
+    접근 제어 취약점을 방지하려면:
+    1. 모든 요청에 대해 서버 측 인가 검증 수행
+    2. 직접 객체 참조 대신 간접 참조 사용
+    3. 사용자 입력을 파일 경로나 리다이렉트 URL에 직접 사용하지 않음
+    4. 화이트리스트 기반 접근 제어 구현
+    5. 기본적으로 접근 거부 정책 적용
+  en: |
+    To prevent broken access control:
+    1. Perform server-side authorization checks on all requests
+    2. Use indirect references instead of direct object references
+    3. Never use user input directly in file paths or redirect URLs
+    4. Implement whitelist-based access control
+    5. Apply deny-by-default policy
+
+references:
+  - https://owasp.org/Top10/A01_2021-Broken_Access_Control/
+  - https://cwe.mitre.org/data/definitions/639.html
+  - https://cheatsheetseries.owasp.org/cheatsheets/Authorization_Cheat_Sheet.html
+
+cwe_ids:
+  - "CWE-22"   # Path Traversal
+  - "CWE-639"  # Authorization Bypass Through User-Controlled Key
+  - "CWE-862"  # Missing Authorization
+  - "CWE-863"  # Incorrect Authorization
+
+owasp_ids:
+  - "A01:2021"
