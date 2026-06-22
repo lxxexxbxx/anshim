@@ -119,11 +119,29 @@ class ComplianceRule(BaseModel):
                 return True
 
         # Bandit 테스트 ID 매칭 (B### 형식)
+        # rule_id 형식: "B608", "B608: hardcoded_sql_expressions", "bandit.B608"
         for bandit_id in self.bandit_test_ids:
-            if rule_id.upper() == bandit_id.upper():
+            bandit_id_upper = bandit_id.upper()
+            rule_id_upper = rule_id.upper()
+
+            # 정확히 일치
+            if rule_id_upper == bandit_id_upper:
                 return True
-            # rule_id가 "B608: hardcoded_sql_expressions" 형태인 경우
-            if rule_id.upper().startswith(bandit_id.upper()):
+
+            # "B608: ..." 형식
+            if rule_id_upper.startswith(bandit_id_upper + ":"):
+                return True
+            if rule_id_upper.startswith(bandit_id_upper + " "):
+                return True
+
+            # "bandit.B608" 형식
+            if rule_id_upper == f"BANDIT.{bandit_id_upper}":
+                return True
+            if rule_id_upper.endswith(f".{bandit_id_upper}"):
+                return True
+
+            # bandit_id가 rule_id에 포함되어 있는지 확인
+            if bandit_id_upper in rule_id_upper:
                 return True
 
         return False
