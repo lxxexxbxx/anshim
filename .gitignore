@@ -45,3 +45,5 @@ anshim-reports/
 .aider*
 .coverage
 htmlcov/
+web/node_modules/
+web/.next/
