@@ -1,0 +1,23 @@
+id: A09-logging-monitoring
+title: 보안 로깅 및 모니터링 실패
+description: 보안 이벤트 로깅 부재 또는 모니터링 미흡
+category: "A09:2021 Security Logging and Monitoring Failures"
+applicable_to:
+  - owasp
+severity: medium
+languages:
+  - python
+  - javascript
+  - java
+semgrep_rule_ids: []
+bandit_test_ids: []
+owasp_ids:
+  - "A09:2021"
+cwe_ids:
+  - "CWE-778"
+remediation:
+  ko: "보안 이벤트(로그인 실패, 권한 오류, 입력 검증 실패 등)를 적절히 로깅하고 모니터링 체계를 구축하세요."
+  en: "Implement proper logging for security events (login failures, access control failures, input validation failures) and establish monitoring."
+references:
+  - "https://owasp.org/Top10/A09_2021-Security_Logging_and_Monitoring_Failures/"
+korean_regulations: []

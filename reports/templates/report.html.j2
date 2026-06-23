@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnShim 보안 감사 리포트 - {{ data.scan_id }}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 14px; color: #1f2937; background: #f9fafb; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+    /* 헤더 */
+    .header { background: #1e3a5f; color: white; padding: 24px 32px; border-radius: 8px; margin-bottom: 24px; }
+    .header h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+    .header .meta { font-size: 13px; opacity: 0.8; margin-top: 8px; }
+    .header .meta span { margin-right: 16px; }
+
+    /* 요약 카드 */
+    .summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+    .card { background: white; border-radius: 8px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.08); border-top: 4px solid #e5e7eb; }
+    .card.total { border-top-color: #6b7280; }
+    .card.critical { border-top-color: #dc2626; }
+    .card.high { border-top-color: #ea580c; }
+    .card.medium { border-top-color: #ca8a04; }
+    .card.low { border-top-color: #2563eb; }
+    .card .label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
+    .card .value { font-size: 32px; font-weight: 700; }
+    .card.total .value { color: #1f2937; }
+    .card.critical .value { color: #dc2626; }
+    .card.high .value { color: #ea580c; }
+    .card.medium .value { color: #ca8a04; }
+    .card.low .value { color: #2563eb; }
+
+    /* 섹션 */
+    .section { background: white; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .section h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #e5e7eb; }
+
+    /* 컴플라이언스 테이블 */
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f3f4f6; text-align: left; padding: 10px 12px; font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f9fafb; }
+
+    /* 심각도 뱃지 */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-critical { background: #fee2e2; color: #dc2626; }
+    .badge-high { background: #ffedd5; color: #ea580c; }
+    .badge-medium { background: #fef9c3; color: #ca8a04; }
+    .badge-low { background: #dbeafe; color: #2563eb; }
+
+    /* 취약점 카드 */
+    .vuln-card { border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 12px; overflow: hidden; }
+    .vuln-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+    .vuln-header .title { font-weight: 600; flex: 1; }
+    .vuln-body { padding: 12px 16px; }
+    .vuln-meta { display: flex; gap: 24px; margin-bottom: 10px; font-size: 12px; color: #6b7280; }
+    .vuln-meta .item { display: flex; align-items: center; gap: 4px; }
+    .vuln-desc { font-size: 13px; color: #374151; margin-bottom: 10px; line-height: 1.6; }
+    .code-block { background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 12px; overflow-x: auto; margin: 8px 0; white-space: pre; }
+    .detail-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid #f3f4f6; }
+    .detail-section h4 { font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px; }
+    .detail-section p { font-size: 13px; color: #374151; line-height: 1.6; }
+    .compliance-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .comp-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: #ede9fe; color: #5b21b6; }
+
+    /* 푸터 */
+    .footer { text-align: center; color: #9ca3af; font-size: 12px; margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; }
+
+    /* 공란 상태 */
+    .empty { text-align: center; padding: 40px; color: #6b7280; }
+
+    @media print {
+      body { background: white; }
+      .container { padding: 0; }
+      .vuln-card { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- 헤더 -->
+  <div class="header">
+    <h1>🛡️ AnShim 보안 감사 리포트</h1>
+    <div class="meta">
+      <span>📁 대상: {{ data.target_path }}</span>
+      <span>🕐 생성: {{ data.generated_at }}</span>
+      <span>🔍 스캔 ID: {{ data.scan_id }}</span>
+      {% if data.model_used %}
+      <span>🤖 모델: {{ data.model_used }}</span>
+      {% endif %}
+      <span>⏱️ 소요: {{ "%.1f"|format(data.duration_seconds) }}초</span>
+    </div>
+  </div>
+
+  <!-- 요약 카드 -->
+  <div class="summary-grid">
+    <div class="card total">
+      <div class="label">전체 취약점</div>
+      <div class="value">{{ data.total_issues }}</div>
+    </div>
+    <div class="card critical">
+      <div class="label">Critical</div>
+      <div class="value">{{ data.critical_count }}</div>
+    </div>
+    <div class="card high">
+      <div class="label">High</div>
+      <div class="value">{{ data.high_count }}</div>
+    </div>
+    <div class="card medium">
+      <div class="label">Medium</div>
+      <div class="value">{{ data.medium_count }}</div>
+    </div>
+    <div class="card low">
+      <div class="label">Low</div>
+      <div class="value">{{ data.low_count }}</div>
+    </div>
+  </div>
+
+  <!-- 스캔 정보 -->
+  <div class="section">
+    <h2>📊 스캔 정보</h2>
+    <table>
+      <tr><td style="width:180px;color:#6b7280;">분석 파일</td><td>{{ data.scanned_files }} / {{ data.total_files }}개</td></tr>
+      <tr><td style="color:#6b7280;">컴플라이언스</td><td>{{ data.compliance_types | join(', ') | upper }}</td></tr>
+      <tr><td style="color:#6b7280;">분석 방식</td><td>{{ "하이브리드 (규칙 기반 + LLM)" if data.llm_enabled else "규칙 기반" }}</td></tr>
+      {% if data.false_positives_removed > 0 %}
+      <tr><td style="color:#6b7280;">FP 제거</td><td>{{ data.false_positives_removed }}개</td></tr>
+      {% endif %}
+    </table>
+  </div>
+
+  <!-- 컴플라이언스 통계 -->
+  {% if data.compliance_stats %}
+  <div class="section">
+    <h2>📋 컴플라이언스별 현황</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>컴플라이언스</th>
+          <th>전체</th>
+          <th>Critical</th>
+          <th>High</th>
+          <th>Medium</th>
+          <th>Low</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for stat in data.compliance_stats %}
+        <tr>
+          <td><strong>{{ stat.compliance_type | upper }}</strong></td>
+          <td>{{ stat.total }}</td>
+          <td style="color:#dc2626;">{{ stat.by_severity.get('critical', 0) }}</td>
+          <td style="color:#ea580c;">{{ stat.by_severity.get('high', 0) }}</td>
+          <td style="color:#ca8a04;">{{ stat.by_severity.get('medium', 0) }}</td>
+          <td style="color:#2563eb;">{{ stat.by_severity.get('low', 0) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+
+  <!-- 취약점 상세 목록 -->
+  <div class="section">
+    <h2>🔍 취약점 상세 목록</h2>
+    {% if data.results %}
+    {% for result in data.results %}
+    <div class="vuln-card">
+      <div class="vuln-header">
+        <span class="badge badge-{{ result.severity | lower }}">{{ result.severity | upper }}</span>
+        <span class="title">{{ result.title }}</span>
+        <span style="font-size:12px;color:#6b7280;">{{ result.source | upper }}</span>
+      </div>
+      <div class="vuln-body">
+        <div class="vuln-meta">
+          <span class="item">📄 {{ result.file_path }}</span>
+          <span class="item">📍 라인 {{ result.line_start }}</span>
+          <span class="item">🔑 {{ result.rule_id }}</span>
+        </div>
+        {% if result.description %}
+        <p class="vuln-desc">{{ result.description }}</p>
+        {% endif %}
+        {% if result.code_snippet %}
+        <div class="code-block">{{ result.code_snippet }}</div>
+        {% endif %}
+
+        {% if result.llm_analysis %}
+        <div class="detail-section">
+          <h4>🤖 LLM 분석</h4>
+          <p>{{ result.llm_analysis }}</p>
+        </div>
+        {% endif %}
+
+        {% if result.attack_scenario and result.attack_scenario is mapping %}
+        <div class="detail-section">
+          <h4>⚠️ 공격 시나리오</h4>
+          {% if result.attack_scenario.attack_name %}<p><strong>{{ result.attack_scenario.attack_name }}</strong></p>{% endif %}
+          {% if result.attack_scenario.attack_steps %}
+          <ol style="margin-top:6px;padding-left:20px;font-size:13px;color:#374151;">
+            {% for step in result.attack_scenario.attack_steps %}
+            <li style="margin-bottom:4px;">{{ step }}</li>
+            {% endfor %}
+          </ol>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% if result.remediation and result.remediation is mapping %}
+        <div class="detail-section">
+          <h4>✅ 수정 제안</h4>
+          {% if result.remediation.fix_summary %}<p>{{ result.remediation.fix_summary }}</p>{% endif %}
+          {% if result.remediation.fixed_code %}
+          <div class="code-block">{{ result.remediation.fixed_code }}</div>
+          {% endif %}
+        </div>
+        {% endif %}
+
+        {% if result.compliance_mappings %}
+        <div class="detail-section">
+          <h4>📌 컴플라이언스 매핑</h4>
+          <div class="compliance-tags">
+            {% for mapping in result.compliance_mappings %}
+            <span class="comp-tag" title="{{ mapping.compliance_title }}">
+              {{ mapping.compliance_type | upper }}: {{ mapping.compliance_id }}
+            </span>
+            {% endfor %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty">✅ 취약점이 발견되지 않았습니다.</div>
+    {% endif %}
+  </div>
+
+  <div class="footer">
+    AnShim v0.1.0 — 로컬 LLM 기반 보안 코드 감사 도구 | 데이터 외부 전송 없음 (100% 로컬)
+  </div>
+</div>
+</body>
+</html>

@@ -17,6 +17,7 @@ from rich.table import Table
 from anshim.core.analyzers import HybridAnalyzer, HybridScanResult
 from anshim.core.db import save_hybrid_result
 from anshim.core.models import get_recommended_model
+from anshim.core.reporters import get_reporter
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -183,9 +184,15 @@ def scan_command(
     # 결과 출력
     _print_results(result, verbose)
 
-    # 리포트 생성 안내
-    if output:
-        console.print(f"\n[dim]리포트 위치: {output}[/dim]")
+    # 리포트 생성
+    _generate_reports(
+        result=result,
+        scan_id=scan_id,
+        output=output,
+        html=html,
+        excel=excel,
+        json_output=json_output,
+    )
 
     # 종료 코드 결정 (critical/high 이슈 있으면 1)
     if result.critical_count > 0 or result.high_count > 0:
@@ -396,3 +403,53 @@ def _print_results(result: HybridScanResult, verbose: bool) -> None:
 
             if res.isms_relevance:
                 console.print(f"   [magenta]ISMS 관련:[/magenta] {res.isms_relevance}")
+
+
+def _generate_reports(
+    result: HybridScanResult,
+    scan_id: str,
+    output: Optional[Path],
+    html: bool,
+    excel: bool,
+    json_output: bool,
+) -> None:
+    """스캔 결과를 파일 리포트로 저장.
+
+    Args:
+        result: 스캔 결과.
+        scan_id: DB 저장된 스캔 ID.
+        output: 출력 디렉토리.
+        html: HTML 생성 여부.
+        excel: Excel 생성 여부.
+        json_output: JSON 생성 여부.
+    """
+    out_dir = output or Path.cwd()
+    generated: list[Path] = []
+
+    formats: list[tuple[str, bool]] = [
+        ("html", html),
+        ("excel", excel),
+        ("json", json_output),
+    ]
+
+    for fmt, enabled in formats:
+        if not enabled:
+            continue
+        try:
+            reporter = get_reporter(fmt)
+            report_path = reporter.generate(result, out_dir)
+            generated.append(report_path)
+        except Exception as e:
+            logger.warning("%s 리포트 생성 실패: %s", fmt.upper(), e)
+            console.print(f"[yellow]{fmt.upper()} 리포트 생성 실패: {e}[/yellow]")
+
+    if generated:
+        console.print()
+        panel_content = "\n".join(f"[cyan]{p}[/cyan]" for p in generated)
+        console.print(
+            Panel(
+                panel_content,
+                title="[bold green]리포트 생성 완료[/bold green]",
+                border_style="green",
+            )
+        )
