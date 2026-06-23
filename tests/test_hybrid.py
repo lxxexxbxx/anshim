@@ -11,6 +11,7 @@ from anshim.core.analyzers.hybrid import (
     HybridScanResult,
     SUPPORTED_EXTENSIONS,
 )
+from anshim.core.analyzers import BanditAnalyzer, SemgrepAnalyzer
 from anshim.core.analyzers.models import AnalysisResult, ScanSummary
 from anshim.core.compliance.mapper import MappedResult, ComplianceMappingInfo
 from anshim.core.db.repository import (
@@ -214,6 +215,10 @@ class TestHybridAnalyzer:
         assert result.llm_enabled is False
         assert result.model_used is None
 
+    @pytest.mark.skipif(
+        not (SemgrepAnalyzer().is_available() or BanditAnalyzer().is_available()),
+        reason="Semgrep과 Bandit 모두 설치되어 있지 않음",
+    )
     def test_analyze_detects_vulnerabilities(self, fixtures_dir, mock_ollama_down):
         """취약점 탐지 테스트."""
         analyzer = HybridAnalyzer(compliance_types=["isms-p", "owasp", "cwe"])

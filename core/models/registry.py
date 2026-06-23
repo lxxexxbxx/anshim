@@ -5,7 +5,6 @@
 하드웨어 기반 모델 추천은 Sprint 6에서 구현 예정입니다.
 """
 
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -117,7 +116,7 @@ SUPPORTED_MODELS: list[ModelInfo] = [
 ]
 
 
-def get_model_info(name: str) -> Optional[ModelInfo]:
+def get_model_info(name: str) -> ModelInfo | None:
     """모델 이름으로 정보 조회.
 
     Args:
@@ -175,7 +174,7 @@ def get_models_by_vram(vram_gb: int) -> list[ModelInfo]:
     return [m for m in SUPPORTED_MODELS if m.min_vram_gb <= vram_gb]
 
 
-def recommend_model_for_vram(vram_gb: int) -> Optional[ModelInfo]:
+def recommend_model_for_vram(vram_gb: int) -> ModelInfo | None:
     """VRAM에 맞는 최적 모델 추천.
 
     CLAUDE.md 모델 추천 로직 참고:

@@ -6,12 +6,11 @@ scan 명령어 - 코드 보안 스캔.
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn
+from rich.progress import BarColumn, Progress, SpinnerColumn, TextColumn
 from rich.table import Table
 
 from anshim.core.analyzers import HybridAnalyzer, HybridScanResult
@@ -54,13 +53,13 @@ def scan_command(
         "-c",
         help="컴플라이언스 선택 (쉼표로 구분: isms, isms-p, owasp, cwe, all)",
     ),
-    model: Optional[str] = typer.Option(
+    model: str | None = typer.Option(
         None,
         "--model",
         "-m",
         help="사용할 LLM 모델 (예: exaone3.5:7.8b, qwen2.5-coder:14b)",
     ),
-    output: Optional[Path] = typer.Option(
+    output: Path | None = typer.Option(
         None,
         "--output",
         "-o",
@@ -81,7 +80,7 @@ def scan_command(
         "--json",
         help="JSON 리포트 생성",
     ),
-    severity: Optional[str] = typer.Option(
+    severity: str | None = typer.Option(
         None,
         "--severity",
         "-s",
@@ -121,7 +120,7 @@ def scan_command(
     else:
         logging.basicConfig(level=logging.INFO)
 
-    console.print(f"\n[bold blue]AnShim 보안 코드 스캔[/bold blue]")
+    console.print("\n[bold blue]AnShim 보안 코드 스캔[/bold blue]")
     console.print(f"대상: [cyan]{target}[/cyan]\n")
 
     # 컴플라이언스 파싱
@@ -340,7 +339,7 @@ def _print_results(result: HybridScanResult, verbose: bool) -> None:
         # 컴플라이언스 매핑 표시
         compliance_str = ""
         if res.compliance_mappings:
-            comp_types = list(set(m.compliance_type.upper() for m in res.compliance_mappings))[:2]
+            comp_types = list({m.compliance_type.upper() for m in res.compliance_mappings})[:2]
             compliance_str = ", ".join(comp_types)
 
         results_table.add_row(
@@ -408,7 +407,7 @@ def _print_results(result: HybridScanResult, verbose: bool) -> None:
 def _generate_reports(
     result: HybridScanResult,
     scan_id: str,
-    output: Optional[Path],
+    output: Path | None,
     html: bool,
     excel: bool,
     json_output: bool,

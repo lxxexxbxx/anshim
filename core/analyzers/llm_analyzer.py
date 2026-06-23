@@ -10,7 +10,7 @@ import logging
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
 
@@ -38,7 +38,7 @@ class LLMAnalyzer:
     def __init__(
         self,
         model: str,
-        ollama_client: Optional[OllamaClient] = None,
+        ollama_client: OllamaClient | None = None,
     ):
         """LLMAnalyzer 초기화.
 
@@ -48,12 +48,12 @@ class LLMAnalyzer:
         """
         self.model = model
         self.ollama_client = ollama_client or OllamaClient()
-        self._ollama_available: Optional[bool] = None
+        self._ollama_available: bool | None = None
 
         # Jinja2 템플릿 환경 설정
         self.template_env = Environment(
             loader=FileSystemLoader(str(PROMPT_DIR)),
-            autoescape=False,
+            autoescape=False,  # noqa: S701
         )
 
     def is_available(self) -> bool:
@@ -141,7 +141,7 @@ class LLMAnalyzer:
         self,
         result: AnalysisResult,
         timeout: int = 60,
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """공격 시나리오 생성.
 
         Args:
@@ -167,7 +167,7 @@ class LLMAnalyzer:
         self,
         result: AnalysisResult,
         timeout: int = 60,
-    ) -> Optional[dict[str, Any]]:
+    ) -> dict[str, Any] | None:
         """수정 제안 생성.
 
         Args:
@@ -286,7 +286,7 @@ class LLMAnalyzer:
             language=self._detect_language(result.file_path),
         )
 
-    def _parse_json_response(self, response: str) -> Optional[dict[str, Any]]:
+    def _parse_json_response(self, response: str) -> dict[str, Any] | None:
         """LLM 응답에서 JSON 추출.
 
         Args:

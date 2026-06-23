@@ -7,8 +7,8 @@
 import logging
 import time
 import uuid
+from collections.abc import Callable
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -44,7 +44,7 @@ class HybridScanResult(BaseModel):
     duration_seconds: float = Field(default=0.0, ge=0, description="소요 시간 (초)")
 
     # 분석 설정
-    model_used: Optional[str] = Field(default=None, description="사용된 LLM 모델")
+    model_used: str | None = Field(default=None, description="사용된 LLM 모델")
     compliance_types: list[str] = Field(default_factory=list, description="적용된 컴플라이언스")
     llm_enabled: bool = Field(default=False, description="LLM 분석 수행 여부")
 
@@ -71,7 +71,7 @@ class HybridScanResult(BaseModel):
         scan_id: str,
         summary: ScanSummary,
         mapped_results: list[MappedResult],
-        model_used: Optional[str],
+        model_used: str | None,
         compliance_types: list[str],
         llm_enabled: bool,
         false_positives_removed: int,
@@ -130,10 +130,10 @@ class HybridAnalyzer:
 
     def __init__(
         self,
-        model: Optional[str] = None,
-        compliance_types: Optional[list[str]] = None,
-        rules_dir: Optional[Path] = None,
-        ollama_client: Optional[OllamaClient] = None,
+        model: str | None = None,
+        compliance_types: list[str] | None = None,
+        rules_dir: Path | None = None,
+        ollama_client: OllamaClient | None = None,
     ):
         """HybridAnalyzer 초기화.
 
@@ -150,11 +150,11 @@ class HybridAnalyzer:
         # 분석기 초기화
         self._rule_analyzer = RuleBasedAnalyzer()
         self._ollama_client = ollama_client or OllamaClient()
-        self._llm_analyzer: Optional[LLMAnalyzer] = None
-        self._compliance_mapper: Optional[ComplianceMapper] = None
+        self._llm_analyzer: LLMAnalyzer | None = None
+        self._compliance_mapper: ComplianceMapper | None = None
 
         # 상태
-        self._llm_available: Optional[bool] = None
+        self._llm_available: bool | None = None
 
     @property
     def llm_available(self) -> bool:
@@ -168,7 +168,7 @@ class HybridAnalyzer:
         target: Path,
         skip_llm: bool = False,
         llm_timeout: int = 90,
-        progress_callback: Optional[callable] = None,
+        progress_callback: Callable[..., None] | None = None,
     ) -> HybridScanResult:
         """하이브리드 분석 실행.
 

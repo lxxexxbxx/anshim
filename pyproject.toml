@@ -1,6 +1,6 @@
 [project]
 name = "anshim"
-version = "0.1.0"
+version = "0.2.0"
 description = "한국 기업을 위한 로컬 LLM 기반 보안 코드 감사 도구 (ISMS/ISMS-P 컴플라이언스 매핑)"
 readme = "README.md"
 license = { text = "MIT" }
@@ -94,6 +94,7 @@ select = [
 ]
 ignore = [
     "E501",   # line too long (handled by formatter)
+    "B008",   # typer.Option/Argument in function defaults (Typer 표준 패턴)
 ]
 
 [tool.ruff.lint.isort]

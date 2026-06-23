@@ -4,10 +4,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from anshim.core.analyzers.hybrid import HybridScanResult
-from anshim.core.compliance.mapper import MappedResult
 
 
 @dataclass
@@ -29,7 +27,7 @@ class ReportData:
     total_files: int
     scanned_files: int
     duration_seconds: float
-    model_used: Optional[str]
+    model_used: str | None
     compliance_types: list
     llm_enabled: bool
 

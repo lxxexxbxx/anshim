@@ -1,7 +1,6 @@
 """FastAPI 웹 API 서버."""
 
 import logging
-from typing import Optional
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,8 +12,8 @@ from anshim.core.api.schemas import (
     ScanDetailResponse,
     ScanListResponse,
     ScanResponse,
-    StatsResponse,
     SeverityStats,
+    StatsResponse,
     VulnerabilityResponse,
 )
 from anshim.core.db.repository import ScanRepository, VulnerabilityRepository
@@ -132,7 +131,7 @@ async def get_scan(scan_id: str) -> ScanDetailResponse:
 @app.get("/api/scans/{scan_id}/vulnerabilities", response_model=list[VulnerabilityResponse])
 async def list_vulnerabilities(
     scan_id: str,
-    severity: Optional[str] = None,
+    severity: str | None = None,
     limit: int = Query(default=200, ge=1, le=1000),
     offset: int = Query(default=0, ge=0),
 ) -> list[VulnerabilityResponse]:
@@ -234,7 +233,7 @@ async def create_scan(
         analysis_type=AnalysisType.HYBRID,
     )
 
-    def _run_scan(scan_id: str, target_path: str, compliance: str, model: Optional[str]):
+    def _run_scan(scan_id: str, target_path: str, compliance: str, model: str | None):
         try:
             from anshim.core.analyzers.hybrid import HybridAnalyzer
             from anshim.core.db.repository import save_hybrid_result

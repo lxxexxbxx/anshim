@@ -5,9 +5,7 @@
 """
 
 import logging
-from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -47,18 +45,18 @@ class MappedResult(BaseModel):
     severity: str
     file_path: str
     line_start: int
-    line_end: Optional[int] = None
-    code_snippet: Optional[str] = None
+    line_end: int | None = None
+    code_snippet: str | None = None
     source: str
     confidence: str = "medium"
 
     # LLM 분석 결과 (있는 경우)
-    llm_analysis: Optional[str] = None
+    llm_analysis: str | None = None
     is_false_positive: bool = False
-    severity_adjusted: Optional[str] = None
-    isms_relevance: Optional[str] = None
-    attack_scenario: Optional[dict] = None
-    remediation: Optional[dict] = None
+    severity_adjusted: str | None = None
+    isms_relevance: str | None = None
+    attack_scenario: dict | None = None
+    remediation: dict | None = None
 
     # 컴플라이언스 매핑
     compliance_mappings: list[ComplianceMappingInfo] = Field(
@@ -138,8 +136,8 @@ class ComplianceMapper:
 
     def __init__(
         self,
-        rules_dir: Optional[Path] = None,
-        compliance_types: Optional[list[str]] = None,
+        rules_dir: Path | None = None,
+        compliance_types: list[str] | None = None,
     ):
         """ComplianceMapper 초기화.
 

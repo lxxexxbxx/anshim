@@ -37,7 +37,7 @@ def init_command(
     except Exception as e:
         logger.error(f"데이터베이스 초기화 실패: {e}")
         typer.echo(f"❌ 데이터베이스 초기화 실패: {e}", err=True)
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     # 하드웨어 감지 (Sprint 6에서 구현 예정)
     typer.echo("\n🖥️ 하드웨어 감지 중...")

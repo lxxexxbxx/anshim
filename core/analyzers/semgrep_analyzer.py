@@ -101,7 +101,7 @@ class SemgrepAnalyzer:
             logger.debug(f"Semgrep 실행: {' '.join(cmd)}")
 
             # Semgrep 실행
-            result = subprocess.run(
+            result = subprocess.run(  # noqa: S603
                 cmd,
                 capture_output=True,
                 text=True,

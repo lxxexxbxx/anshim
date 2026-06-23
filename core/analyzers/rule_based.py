@@ -6,9 +6,9 @@ Semgrep과 Bandit을 병렬로 실행하고 결과를 통합합니다.
 
 import logging
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Callable
 
 from .bandit_analyzer import BanditAnalyzer
 from .models import AnalysisResult, ScanSummary

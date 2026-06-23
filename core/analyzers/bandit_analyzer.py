@@ -80,7 +80,7 @@ class BanditAnalyzer:
             logger.debug(f"Bandit 실행: {' '.join(cmd)}")
 
             # Bandit 실행
-            result = subprocess.run(
+            result = subprocess.run(  # noqa: S603
                 cmd,
                 capture_output=True,
                 text=True,
@@ -129,7 +129,7 @@ class BanditAnalyzer:
             return target.suffix.lower() == ".py"
 
         # 디렉토리인 경우 재귀적으로 Python 파일 검색
-        for py_file in target.rglob("*.py"):
+        for _py_file in target.rglob("*.py"):
             return True
         return False
 

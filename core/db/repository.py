@@ -8,7 +8,6 @@ import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
@@ -34,7 +33,7 @@ class ScanRepository:
     스캔 메타데이터 및 상태 관리를 담당합니다.
     """
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         """ScanRepository 초기화.
 
         Args:
@@ -46,8 +45,8 @@ class ScanRepository:
     def create_scan(
         self,
         target_path: str,
-        model: Optional[str] = None,
-        compliance_types: Optional[list[str]] = None,
+        model: str | None = None,
+        compliance_types: list[str] | None = None,
         analysis_type: AnalysisType = AnalysisType.HYBRID,
     ) -> Scan:
         """새 스캔 세션 생성.
@@ -142,7 +141,7 @@ class ScanRepository:
 
         logger.error("스캔 실패: %s - %s", scan_id[:8], error_message)
 
-    def get_scan(self, scan_id: str) -> Optional[Scan]:
+    def get_scan(self, scan_id: str) -> Scan | None:
         """스캔 조회.
 
         Args:
@@ -219,7 +218,7 @@ class VulnerabilityRepository:
     취약점 데이터 저장 및 조회를 담당합니다.
     """
 
-    def __init__(self, db_path: Optional[Path] = None):
+    def __init__(self, db_path: Path | None = None):
         """VulnerabilityRepository 초기화.
 
         Args:
@@ -444,7 +443,7 @@ class VulnerabilityRepository:
                 session.expunge(vuln)
             return vulnerabilities
 
-    def get_vulnerability(self, vuln_id: int) -> Optional[Vulnerability]:
+    def get_vulnerability(self, vuln_id: int) -> Vulnerability | None:
         """취약점 조회.
 
         Args:
@@ -488,7 +487,7 @@ class VulnerabilityRepository:
 
 def save_hybrid_result(
     result: HybridScanResult,
-    db_path: Optional[Path] = None,
+    db_path: Path | None = None,
 ) -> str:
     """HybridScanResult를 DB에 저장.
 
