@@ -12,9 +12,9 @@ from rich.console import Console
 from rich.table import Table
 
 from anshim.core.models import (
+    SUPPORTED_MODELS,
     OllamaClient,
     OllamaNotRunningError,
-    SUPPORTED_MODELS,
     get_model_info,
     get_recommended_model,
 )
@@ -139,8 +139,8 @@ def pull_model(
 
     # subprocess로 ollama pull 실행 (실시간 출력)
     try:
-        result = subprocess.run(
-            ["ollama", "pull", model_name],
+        result = subprocess.run(  # noqa: S603
+            ["ollama", "pull", model_name],  # noqa: S607
             check=True,
         )
         if result.returncode == 0:
@@ -148,11 +148,11 @@ def pull_model(
             console.print(f"[green]모델 '{model_name}' 다운로드 완료![/green]")
     except subprocess.CalledProcessError as e:
         console.print(f"[red]모델 다운로드 실패: {e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except FileNotFoundError:
         console.print("[red]ollama 명령을 찾을 수 없습니다.[/red]")
         console.print("Ollama 설치: [link=https://ollama.com]https://ollama.com[/link]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.command("recommend")
@@ -243,8 +243,8 @@ def remove_model(
     console.print(f"[bold]모델 삭제 중: {model_name}[/bold]")
 
     try:
-        result = subprocess.run(
-            ["ollama", "rm", model_name],
+        subprocess.run(  # noqa: S603
+            ["ollama", "rm", model_name],  # noqa: S607
             check=True,
             capture_output=True,
             text=True,
@@ -252,10 +252,10 @@ def remove_model(
         console.print(f"[green]모델 '{model_name}' 삭제 완료![/green]")
     except subprocess.CalledProcessError as e:
         console.print(f"[red]모델 삭제 실패: {e.stderr or e}[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
     except FileNotFoundError:
         console.print("[red]ollama 명령을 찾을 수 없습니다.[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.command("info")

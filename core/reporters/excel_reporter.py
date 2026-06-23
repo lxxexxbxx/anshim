@@ -4,9 +4,7 @@ openpyxl 기반 .xlsx 리포트 생성기.
 """
 
 import logging
-from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 from anshim.core.analyzers.hybrid import HybridScanResult
 from anshim.core.reporters.base import BaseReporter, ReportData
@@ -58,7 +56,7 @@ def _auto_width(ws, min_width: int = 10, max_width: int = 60) -> None:
                 cell_len = len(str(cell.value or ""))
                 if cell_len > max_len:
                     max_len = cell_len
-            except Exception:
+            except Exception:  # noqa: S110
                 pass
         ws.column_dimensions[col_letter].width = min(max_len + 2, max_width)
 
@@ -78,7 +76,6 @@ class ExcelReporter(BaseReporter):
         """
         try:
             from openpyxl import Workbook
-            from openpyxl.styles import Alignment, Font
         except ImportError as e:
             raise RuntimeError("openpyxl이 설치되지 않았습니다: pip install openpyxl") from e
 
@@ -107,7 +104,7 @@ class ExcelReporter(BaseReporter):
         return output_file
 
     def _write_summary_sheet(self, wb, data: ReportData) -> None:
-        from openpyxl.styles import Alignment, Font
+        from openpyxl.styles import Font
         ws = wb.create_sheet("요약")
         hfont, hfill, halign = _make_header_style()
 
@@ -167,7 +164,7 @@ class ExcelReporter(BaseReporter):
         _auto_width(ws)
 
     def _write_vulns_sheet(self, wb, data: ReportData) -> None:
-        from openpyxl.styles import Alignment, Font
+        from openpyxl.styles import Alignment
         ws = wb.create_sheet("취약점 목록")
         hfont, hfill, halign = _make_header_style()
 
@@ -218,7 +215,7 @@ class ExcelReporter(BaseReporter):
         _auto_width(ws)
 
     def _write_compliance_sheet(self, wb, data: ReportData) -> None:
-        from openpyxl.styles import Alignment, Font
+        from openpyxl.styles import Alignment
         ws = wb.create_sheet("ISMS-P 매핑")
         hfont, hfill, halign = _make_header_style()
 

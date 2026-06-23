@@ -6,7 +6,6 @@ Ollama 서버와 통신하여 LLM 텍스트 생성을 수행합니다.
 """
 
 import logging
-from typing import Optional
 
 import httpx
 from pydantic import BaseModel, Field
@@ -28,8 +27,8 @@ class OllamaGenerateResponse(BaseModel):
     model: str = Field(..., description="사용된 모델 이름")
     response: str = Field(..., description="생성된 텍스트")
     done: bool = Field(default=True, description="생성 완료 여부")
-    total_duration: Optional[int] = Field(default=None, description="총 소요 시간 (ns)")
-    eval_count: Optional[int] = Field(default=None, description="평가된 토큰 수")
+    total_duration: int | None = Field(default=None, description="총 소요 시간 (ns)")
+    eval_count: int | None = Field(default=None, description="평가된 토큰 수")
 
 
 class OllamaClient:
@@ -122,8 +121,8 @@ class OllamaClient:
         self,
         model: str,
         prompt: str,
-        timeout: Optional[int] = None,
-        system: Optional[str] = None,
+        timeout: int | None = None,
+        system: str | None = None,
         temperature: float = 0.7,
     ) -> str:
         """텍스트 생성.

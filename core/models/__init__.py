@@ -2,8 +2,8 @@
 
 from .ollama_client import OllamaClient, OllamaNotRunningError
 from .registry import (
-    ModelInfo,
     SUPPORTED_MODELS,
+    ModelInfo,
     get_korean_models,
     get_model_info,
     get_models_by_vram,

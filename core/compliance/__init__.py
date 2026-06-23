@@ -2,8 +2,8 @@
 
 from anshim.core.compliance.loader import ComplianceRule, RuleLoader
 from anshim.core.compliance.mapper import (
-    ComplianceMappingInfo,
     ComplianceMapper,
+    ComplianceMappingInfo,
     MappedResult,
 )
 

@@ -7,7 +7,6 @@ report 명령어 그룹 - 스캔 리포트 관리.
 import logging
 import webbrowser
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
@@ -99,7 +98,7 @@ def show_report(
         "--no-browser",
         help="브라우저 자동 열기 비활성화",
     ),
-    output: Optional[Path] = typer.Option(
+    output: Path | None = typer.Option(
         None,
         "--output",
         "-o",
@@ -223,7 +222,7 @@ def export_report(
         ...,
         help="스캔 ID (앞 8자리 또는 전체)",
     ),
-    output: Optional[Path] = typer.Option(
+    output: Path | None = typer.Option(
         None,
         "--output",
         "-o",

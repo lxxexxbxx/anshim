@@ -1,7 +1,6 @@
 # anshim/core/analyzers/models.py
 """분석 결과를 위한 공통 모델 정의."""
 
-from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -20,8 +19,8 @@ class AnalysisResult(BaseModel):
     severity: str = Field(..., description="심각도: critical, high, medium, low")
     file_path: str = Field(..., description="취약점 발견 파일 경로")
     line_start: int = Field(..., ge=1, description="시작 라인 번호")
-    line_end: Optional[int] = Field(default=None, description="종료 라인 번호")
-    code_snippet: Optional[str] = Field(default=None, description="취약한 코드 스니펫")
+    line_end: int | None = Field(default=None, description="종료 라인 번호")
+    code_snippet: str | None = Field(default=None, description="취약한 코드 스니펫")
     source: str = Field(..., description="분석기 출처: semgrep, bandit")
     confidence: str = Field(default="medium", description="신뢰도: high, medium, low")
 

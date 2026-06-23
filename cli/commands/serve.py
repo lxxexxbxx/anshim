@@ -45,7 +45,7 @@ def _check_node_modules() -> bool:
 def _npm(args: list[str], **kwargs) -> subprocess.CompletedProcess:
     """npm 명령 실행 (플랫폼 호환)."""
     npm_cmd = "npm.cmd" if sys.platform == "win32" else "npm"
-    return subprocess.run([npm_cmd] + args, **kwargs)
+    return subprocess.run([npm_cmd] + args, **kwargs)  # noqa: S603
 
 
 def serve_command(
@@ -77,10 +77,10 @@ def serve_command(
             raise typer.Exit(1)
         console.print("[green]✅ 의존성 설치 완료[/green]")
 
-    console.print(f"\n[bold]🔐 안심 (AnShim) 대시보드[/bold]")
+    console.print("\n[bold]🔐 안심 (AnShim) 대시보드[/bold]")
     console.print(f"   백엔드 API: [cyan]http://{host}:{api_port}[/cyan]")
     console.print(f"   프론트엔드: [cyan]http://{host}:{port}[/cyan]")
-    console.print(f"   종료: [dim]Ctrl+C[/dim]\n")
+    console.print("   종료: [dim]Ctrl+C[/dim]\n")
 
     # FastAPI 백엔드 스레드 시작
     api_thread = threading.Thread(
@@ -103,7 +103,7 @@ def serve_command(
     env = {**os.environ, **next_env}
 
     try:
-        next_proc = subprocess.Popen(
+        next_proc = subprocess.Popen(  # noqa: S603
             [npm_cmd] + next_args,
             cwd=str(_WEB_DIR),
             env=env,
@@ -111,7 +111,7 @@ def serve_command(
         console.print("[green]✅ Next.js 서버 시작됨[/green]")
     except FileNotFoundError:
         console.print("[red]오류: Node.js / npm이 설치되지 않았습니다.[/red]")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
     # 서버가 뜰 때까지 잠깐 대기 후 브라우저 열기
     if open_browser:

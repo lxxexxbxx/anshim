@@ -6,7 +6,6 @@ YAML 파일에서 컴플라이언스 룰을 로드하고 파싱합니다.
 
 import logging
 from pathlib import Path
-from typing import Optional
 
 import yaml
 from pydantic import BaseModel, Field, field_validator
@@ -80,7 +79,7 @@ class ComplianceRule(BaseModel):
         description="관련 한국 법규",
     )
 
-    source_file: Optional[str] = Field(
+    source_file: str | None = Field(
         default=None,
         description="원본 YAML 파일 경로",
     )
@@ -171,7 +170,7 @@ class RuleLoader:
     rules/ 디렉토리에서 YAML 파일을 읽어 ComplianceRule 목록을 생성합니다.
     """
 
-    def __init__(self, rules_dir: Optional[Path] = None):
+    def __init__(self, rules_dir: Path | None = None):
         """RuleLoader 초기화.
 
         Args:
@@ -219,7 +218,7 @@ class RuleLoader:
 
         return self._rules
 
-    def _load_rule_file(self, yaml_path: Path) -> Optional[ComplianceRule]:
+    def _load_rule_file(self, yaml_path: Path) -> ComplianceRule | None:
         """개별 YAML 파일 로드.
 
         Args:
@@ -228,7 +227,7 @@ class RuleLoader:
         Returns:
             파싱된 ComplianceRule 또는 None.
         """
-        with open(yaml_path, "r", encoding="utf-8") as f:
+        with open(yaml_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         if not data:
@@ -263,7 +262,7 @@ class RuleLoader:
             rule for rule in self._rules if rule.is_applicable(compliance_types)
         ]
 
-    def get_rule_by_id(self, rule_id: str) -> Optional[ComplianceRule]:
+    def get_rule_by_id(self, rule_id: str) -> ComplianceRule | None:
         """룰 ID로 룰 조회.
 
         Args:
@@ -283,7 +282,7 @@ class RuleLoader:
     def find_matching_rules(
         self,
         analysis_rule_id: str,
-        compliance_types: Optional[list[str]] = None,
+        compliance_types: list[str] | None = None,
     ) -> list[ComplianceRule]:
         """분석 결과의 rule_id에 매핑되는 룰 찾기.
 

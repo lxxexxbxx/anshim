@@ -6,9 +6,9 @@ SQLite 데이터베이스 연결, 초기화, 세션 팩토리를 제공합니다
 
 import logging
 import os
+from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Generator
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker

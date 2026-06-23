@@ -6,7 +6,6 @@ SQLAlchemy ORM을 사용하여 테이블 스키마를 정의합니다.
 
 import enum
 from datetime import datetime
-from typing import Optional
 
 from sqlalchemy import (
     JSON,
