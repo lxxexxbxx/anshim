@@ -92,10 +92,12 @@ class TestReportCommand:
         assert result.exit_code == 0
         assert "스캔" in result.output
 
-    def test_report_show(self) -> None:
-        """report show 테스트."""
-        result = runner.invoke(app, ["report", "show", "test-id"])
-        assert result.exit_code == 0
+    def test_report_show_not_found(self) -> None:
+        """report show - 존재하지 않는 scan ID 처리."""
+        result = runner.invoke(app, ["report", "show", "nonexistent-id"])
+        # 존재하지 않는 ID는 exit_code 1 반환
+        assert result.exit_code == 1
+        assert "찾을 수 없습니다" in result.output
 
 
 class TestServeCommand:

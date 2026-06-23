@@ -3,7 +3,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class AnalysisResult(BaseModel):
@@ -11,6 +11,8 @@ class AnalysisResult(BaseModel):
 
     Semgrep, Bandit 등 다양한 분석기의 결과를 통일된 형식으로 표현.
     """
+
+    model_config = ConfigDict(extra="allow")
 
     rule_id: str = Field(..., description="규칙 ID (예: python.cryptography.security.insecure-hash-md5)")
     title: str = Field(..., description="취약점 제목")
@@ -22,11 +24,6 @@ class AnalysisResult(BaseModel):
     code_snippet: Optional[str] = Field(default=None, description="취약한 코드 스니펫")
     source: str = Field(..., description="분석기 출처: semgrep, bandit")
     confidence: str = Field(default="medium", description="신뢰도: high, medium, low")
-
-    class Config:
-        """Pydantic 설정."""
-
-        extra = "allow"  # 추가 필드 허용
 
     def unique_key(self) -> str:
         """중복 제거를 위한 고유 키 생성.

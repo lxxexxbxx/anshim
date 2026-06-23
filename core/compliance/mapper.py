@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from anshim.core.analyzers.models import AnalysisResult
 from anshim.core.compliance.loader import ComplianceRule, RuleLoader
@@ -66,10 +66,7 @@ class MappedResult(BaseModel):
         description="매핑된 컴플라이언스 정보 목록",
     )
 
-    class Config:
-        """Pydantic 설정."""
-
-        extra = "allow"
+    model_config = ConfigDict(extra="allow")
 
     @classmethod
     def from_analysis_result(
