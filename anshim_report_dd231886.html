@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AnShim 보안 감사 리포트 - dd231886</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Malgun Gothic', '맑은 고딕', sans-serif; font-size: 14px; color: #1f2937; background: #f9fafb; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
+
+    /* 헤더 */
+    .header { background: #1e3a5f; color: white; padding: 24px 32px; border-radius: 8px; margin-bottom: 24px; }
+    .header h1 { font-size: 24px; font-weight: 700; margin-bottom: 4px; }
+    .header .meta { font-size: 13px; opacity: 0.8; margin-top: 8px; }
+    .header .meta span { margin-right: 16px; }
+
+    /* 요약 카드 */
+    .summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; margin-bottom: 24px; }
+    .card { background: white; border-radius: 8px; padding: 20px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.08); border-top: 4px solid #e5e7eb; }
+    .card.total { border-top-color: #6b7280; }
+    .card.critical { border-top-color: #dc2626; }
+    .card.high { border-top-color: #ea580c; }
+    .card.medium { border-top-color: #ca8a04; }
+    .card.low { border-top-color: #2563eb; }
+    .card .label { font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
+    .card .value { font-size: 32px; font-weight: 700; }
+    .card.total .value { color: #1f2937; }
+    .card.critical .value { color: #dc2626; }
+    .card.high .value { color: #ea580c; }
+    .card.medium .value { color: #ca8a04; }
+    .card.low .value { color: #2563eb; }
+
+    /* 섹션 */
+    .section { background: white; border-radius: 8px; padding: 24px; margin-bottom: 24px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .section h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid #e5e7eb; }
+
+    /* 컴플라이언스 테이블 */
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #f3f4f6; text-align: left; padding: 10px 12px; font-size: 12px; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; }
+    td { padding: 10px 12px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f9fafb; }
+
+    /* 심각도 뱃지 */
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; }
+    .badge-critical { background: #fee2e2; color: #dc2626; }
+    .badge-high { background: #ffedd5; color: #ea580c; }
+    .badge-medium { background: #fef9c3; color: #ca8a04; }
+    .badge-low { background: #dbeafe; color: #2563eb; }
+
+    /* 취약점 카드 */
+    .vuln-card { border: 1px solid #e5e7eb; border-radius: 6px; margin-bottom: 12px; overflow: hidden; }
+    .vuln-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; }
+    .vuln-header .title { font-weight: 600; flex: 1; }
+    .vuln-body { padding: 12px 16px; }
+    .vuln-meta { display: flex; gap: 24px; margin-bottom: 10px; font-size: 12px; color: #6b7280; }
+    .vuln-meta .item { display: flex; align-items: center; gap: 4px; }
+    .vuln-desc { font-size: 13px; color: #374151; margin-bottom: 10px; line-height: 1.6; }
+    .code-block { background: #1e293b; color: #e2e8f0; padding: 12px; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 12px; overflow-x: auto; margin: 8px 0; white-space: pre; }
+    .detail-section { margin-top: 10px; padding-top: 10px; border-top: 1px solid #f3f4f6; }
+    .detail-section h4 { font-size: 12px; font-weight: 600; color: #6b7280; text-transform: uppercase; margin-bottom: 6px; }
+    .detail-section p { font-size: 13px; color: #374151; line-height: 1.6; }
+    .compliance-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .comp-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; background: #ede9fe; color: #5b21b6; }
+
+    /* 푸터 */
+    .footer { text-align: center; color: #9ca3af; font-size: 12px; margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; }
+
+    /* 공란 상태 */
+    .empty { text-align: center; padding: 40px; color: #6b7280; }
+
+    @media print {
+      body { background: white; }
+      .container { padding: 0; }
+      .vuln-card { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <!-- 헤더 -->
+  <div class="header">
+    <h1>🛡️ AnShim 보안 감사 리포트</h1>
+    <div class="meta">
+      <span>📁 대상: C:\Users\KISIA\anshim_project\anshim\tests\fixtures</span>
+      <span>🕐 생성: 2026-06-24 15:22:09</span>
+      <span>🔍 스캔 ID: dd231886</span>
+      
+      <span>⏱️ 소요: 5.1초</span>
+    </div>
+  </div>
+
+  <!-- 요약 카드 -->
+  <div class="summary-grid">
+    <div class="card total">
+      <div class="label">전체 취약점</div>
+      <div class="value">13</div>
+    </div>
+    <div class="card critical">
+      <div class="label">Critical</div>
+      <div class="value">0</div>
+    </div>
+    <div class="card high">
+      <div class="label">High</div>
+      <div class="value">4</div>
+    </div>
+    <div class="card medium">
+      <div class="label">Medium</div>
+      <div class="value">3</div>
+    </div>
+    <div class="card low">
+      <div class="label">Low</div>
+      <div class="value">6</div>
+    </div>
+  </div>
+
+  <!-- 스캔 정보 -->
+  <div class="section">
+    <h2>📊 스캔 정보</h2>
+    <table>
+      <tr><td style="width:180px;color:#6b7280;">분석 파일</td><td>3 / 3개</td></tr>
+      <tr><td style="color:#6b7280;">컴플라이언스</td><td>ISMS-P</td></tr>
+      <tr><td style="color:#6b7280;">분석 방식</td><td>규칙 기반</td></tr>
+      
+    </table>
+  </div>
+
+  <!-- 컴플라이언스 통계 -->
+  
+  <div class="section">
+    <h2>📋 컴플라이언스별 현황</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>컴플라이언스</th>
+          <th>전체</th>
+          <th>Critical</th>
+          <th>High</th>
+          <th>Medium</th>
+          <th>Low</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+        <tr>
+          <td><strong>ISMS-P</strong></td>
+          <td>22</td>
+          <td style="color:#dc2626;">0</td>
+          <td style="color:#ea580c;">6</td>
+          <td style="color:#ca8a04;">7</td>
+          <td style="color:#2563eb;">9</td>
+        </tr>
+        
+      </tbody>
+    </table>
+  </div>
+  
+
+  <!-- 취약점 상세 목록 -->
+  <div class="section">
+    <h2>🔍 취약점 상세 목록</h2>
+    
+    
+    <div class="vuln-card">
+      <div class="vuln-header">
+        <span class="badge badge-high">HIGH</span>
+        <span class="title">Use of weak MD5 hash for security. Consider usedforsecurity=False</span>
+        <span style="font-size:12px;color:#6b7280;">BANDIT</span>
+      </div>
+      <div class="vuln-body">
+        <div class="vuln-meta">
+          <span class="item">📄 C:\Users\KISIA\anshim_project\anshim\tests\fixtures\vulnerable_python.py</span>
+          <span class="item">📍 라인 25</span>
+          <span class="item">🔑 bandit.B324</span>
+        </div>
+        
+        <p class="vuln-desc">[B324] hashlib: https://bandit.readthedocs.io/en/1.9.4/plugins/b324_hashlib.html</p>
+        
+        
+        <div class="code-block">24     &#34;&#34;&#34;
+25     return hashlib.md5(password.encode()).hexdigest()  # noqa: S324
+26 
+</div>
+        
+
+        
+
+        
+
+        
+
+        
+        <div class="detail-section">
+          <h4>📌 컴플라이언스 매핑</h4>
+          <div class="compliance-tags">
+            
+            <span class="comp-tag" title="취약한 암호 알고리즘 사용">
+              ISMS-P: 2.7.1
+            </span>
+            
+            <span class="comp-tag" title="암호화 실패 (Cryptographic Failures)">
+              ISMS-P: A02
+            </span>
+            
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="vuln-card">
+      <div class="vuln-header">
+        <span class="badge badge-high">HIGH</span>
+        <span class="title">Use of weak SHA1 hash for security. Consider usedforsecurity=False</span>
+        <span style="font-size:12px;color:#6b7280;">BANDIT</span>
+      </div>
+      <div class="vuln-body">
+        <div class="vuln-meta">
+          <span class="item">📄 C:\Users\KISIA\anshim_project\anshim\tests\fixtures\vulnerable_python.py</span>
+          <span class="item">📍 라인 33</span>
+          <span class="item">🔑 bandit.B324</span>
+        </div>
+        
+        <p class="vuln-desc">[B324] hashlib: https://bandit.readthedocs.io/en/1.9.4/plugins/b324_hashlib.html</p>
+        
+        
+        <div class="code-block">32     &#34;&#34;&#34;
+33     return hashlib.sha1(password.encode()).hexdigest()  # noqa: S324
+34 
+</div>
+        
+
+        
+
+        
+
+        
+
+        
+        <div class="detail-section">
+          <h4>📌 컴플라이언스 매핑</h4>
+          <div class="compliance-tags">
+            
+            <span class="comp-tag" title="취약한 암호 알고리즘 사용">
+              ISMS-P: 2.7.1
+            </span>
+            
+            <span class="comp-tag" title="암호화 실패 (Cryptographic Failures)">
+              ISMS-P: A02
+            </span>
+            
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="vuln-card">
+      <div class="vuln-header">
+        <span class="badge badge-high">HIGH</span>
+        <span class="title">subprocess call with shell=True identified, security issue.</span>
+        <span style="font-size:12px;color:#6b7280;">BANDIT</span>
+      </div>
+      <div class="vuln-body">
+        <div class="vuln-meta">
+          <span class="item">📄 C:\Users\KISIA\anshim_project\anshim\tests\fixtures\vulnerable_python.py</span>
+          <span class="item">📍 라인 81</span>
+          <span class="item">🔑 bandit.B602</span>
+        </div>
+        
+        <p class="vuln-desc">[B602] subprocess_popen_with_shell_equals_true: https://bandit.readthedocs.io/en/1.9.4/plugins/b602_subprocess_popen_with_shell_equals_true.html</p>
+        
+        
+        <div class="code-block">80         f&#34;echo {user_input}&#34;,
+81         shell=True,
+82         capture_output=True,
+83         text=True,
+84     )
+85     return result.stdout
+86 
+87 
+</div>
+        
+
+        
+
+        
+
+        
+
+        
+        <div class="detail-section">
+          <h4>📌 컴플라이언스 매핑</h4>
+          <div class="compliance-tags">
+            
+            <span class="comp-tag" title="인젝션 (Injection)">
+              ISMS-P: A03
+            </span>
+            
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="vuln-card">
+      <div class="vuln-header">
+        <span class="badge badge-high">HIGH</span>
+        <span class="title">Starting a process with a shell, possible injection detected, security issue.</span>
+        <span style="font-size:12px;color:#6b7280;">BANDIT</span>
+      </div>
+      <div class="vuln-body">
+        <div class="vuln-meta">
+          <span class="item">📄 C:\Users\KISIA\anshim_project\anshim\tests\fixtures\vulnerable_python.py</span>
+          <span class="item">📍 라인 91</span>
+          <span class="item">🔑 bandit.B605</span>
+        </div>
+        
+        <p class="vuln-desc">[B605] start_process_with_a_shell: https://bandit.readthedocs.io/en/1.9.4/plugins/b605_start_process_with_a_shell.html</p>
+        
+        
+        <div class="code-block">90     # 취약한 패턴: os.system 사용
+91     os.system(f&#34;ping -c 1 {host}&#34;)  # noqa: S605
+92     return &#34;Done&#34;
+</div>
+        
+
+        
+
+        
+
+        
+
+        
+        <div class="detail-section">
+          <h4>📌 컴플라이언스 매핑</h4>
+          <div class="compliance-tags">
+            
+            <span class="comp-tag" title="인젝션 (Injection)">
+              ISMS-P: A03
+            </span>
+            
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="vuln-card">
+      <div class="vuln-header">
+        <span class="badge badge-medium">MEDIUM</span>
+        <span class="title">Possible SQL injection vector through string-based query construction.</span>
+        <span style="font-size:12px;color:#6b7280;">BANDIT</span>
+      </div>
+      <div class="vuln-body">
+        <div class="vuln-meta">
+          <span class="item">📄 C:\Users\KISIA\anshim_project\anshim\tests\fixtures\vulnerable_python.py</span>
+          <span class="item">📍 라인 50</span>
+          <span class="item">🔑 bandit.B608</span>
+        </div>
+        
+        <p class="vuln-desc">[B608] hardcoded_sql_expressions: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html</p>
+        
+        
+        <div class="code-block">49     # 취약한 패턴: f-string으로 쿼리 구성
+50     query = f&#34;SELECT * FROM users WHERE id = {user_id}&#34;  # noqa: S608
+51     cursor.execute(query)
+</div>
+        
+
+        
+
+        
+
+        
+
+        
+        <div class="detail-section">
+          <h4>📌 컴플라이언스 매핑</h4>
+          <div class="compliance-tags">
+            
+            <span class="comp-tag" title="SQL 인젝션 취약점">
+              ISMS-P: 2.10.1
+            </span>
+            
+            <span class="comp-tag" title="SQL 인젝션 (SQL Injection)">
+              ISMS-P: CWE
+            </span>
+            
+            <span class="comp-tag" title="인젝션 (Injection)">
+              ISMS-P: A03
+            </span>
+            
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="vuln-card">
+      <div class="vuln-header">
+        <span class="badge badge-medium">MEDIUM</span>
+        <span class="title">Possible SQL injection vector through string-based query construction.</span>
+        <span style="font-size:12px;color:#6b7280;">BANDIT</span>
+      </div>
+      <div class="vuln-body">
+        <div class="vuln-meta">
+          <span class="item">📄 C:\Users\KISIA\anshim_project\anshim\tests\fixtures\vulnerable_python.py</span>
+          <span class="item">📍 라인 62</span>
+          <span class="item">🔑 bandit.B608</span>
+        </div>
+        
+        <p class="vuln-desc">[B608] hardcoded_sql_expressions: https://bandit.readthedocs.io/en/1.9.4/plugins/b608_hardcoded_sql_expressions.html</p>
+        
+        
+        <div class="code-block">61     # 취약한 패턴: 문자열 연결로 쿼리 구성
+62     query = &#34;SELECT * FROM users WHERE name LIKE &#39;%&#34; + name + &#34;%&#39;&#34;  # noqa: S608
+63     cursor.execute(query)
+</div>
+        
+
+        
+
+        
+
+        
+
+        
+        <div class="detail-section">
+          <h4>📌 컴플라이언스 매핑</h4>
+          <div class="compliance-tags">
+            
+            <span class="comp-tag" title="SQL 인젝션 취약점">
+              ISMS-P: 2.10.1
+            </span>
+            
+            <span class="comp-tag" title="SQL 인젝션 (SQL Injection)">
+              ISMS-P: CWE
+            </span>
+            
+            <span class="comp-tag" title="인젝션 (Injection)">
+              ISMS-P: A03
+            </span>
+            
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="vuln-card">
+      <div class="vuln-header">
+        <span class="badge badge-medium">MEDIUM</span>
+        <span class="title">Pickle and modules that wrap it can be unsafe when used to deserialize untrusted data, possible security issue.</span>
+        <span style="font-size:12px;color:#6b7280;">BANDIT</span>
+      </div>
+      <div class="vuln-body">
+        <div class="vuln-meta">
+          <span class="item">📄 C:\Users\KISIA\anshim_project\anshim\tests\fixtures\vulnerable_python.py</span>
+          <span class="item">📍 라인 125</span>
+          <span class="item">🔑 bandit.B301</span>
+        </div>
+        
+        <p class="vuln-desc">[B301] blacklist: https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_calls.html#b301-pickle</p>
+        
+        
+        <div class="code-block">124     &#34;&#34;&#34;
+125     return pickle.loads(data)  # noqa: S301
+126 
+</div>
+        
+
+        
+
+        
+
+        
+
+        
+        <div class="detail-section">
+          <h4>📌 컴플라이언스 매핑</h4>
+          <div class="compliance-tags">
+            
+            <span class="comp-tag" title="접근 제어 취약점 (Broken Access Control)">
+              ISMS-P: A01
+            </span>
+            
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="vuln-card">
+      <div class="vuln-header">
+        <span class="badge badge-low">LOW</span>
+        <span class="title">Consider possible security implications associated with pickle module.</span>
+        <span style="font-size:12px;color:#6b7280;">BANDIT</span>
+      </div>
+      <div class="vuln-body">
+        <div class="vuln-meta">
+          <span class="item">📄 C:\Users\KISIA\anshim_project\anshim\tests\fixtures\vulnerable_python.py</span>
+          <span class="item">📍 라인 10</span>
+          <span class="item">🔑 bandit.B403</span>
+        </div>
+        
+        <p class="vuln-desc">[B403] blacklist: https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b403-import-pickle</p>
+        
+        
+        <div class="code-block">9 import os
+10 import pickle
+11 import sqlite3
+</div>
+        
+
+        
+
+        
+
+        
+
+        
+      </div>
+    </div>
+    
+    <div class="vuln-card">
+      <div class="vuln-header">
+        <span class="badge badge-low">LOW</span>
+        <span class="title">Consider possible security implications associated with the subprocess module.</span>
+        <span style="font-size:12px;color:#6b7280;">BANDIT</span>
+      </div>
+      <div class="vuln-body">
+        <div class="vuln-meta">
+          <span class="item">📄 C:\Users\KISIA\anshim_project\anshim\tests\fixtures\vulnerable_python.py</span>
+          <span class="item">📍 라인 12</span>
+          <span class="item">🔑 bandit.B404</span>
+        </div>
+        
+        <p class="vuln-desc">[B404] blacklist: https://bandit.readthedocs.io/en/1.9.4/blacklists/blacklist_imports.html#b404-import-subprocess</p>
+        
+        
+        <div class="code-block">11 import sqlite3
+12 import subprocess
+13 from typing import Any
+</div>
+        
+
+        
+
+        
+
+        
+
+        
+      </div>
+    </div>
+    
+    <div class="vuln-card">
+      <div class="vuln-header">
+        <span class="badge badge-low">LOW</span>
+        <span class="title">Possible hardcoded password: &#39;super_secret_password_123!&#39;</span>
+        <span style="font-size:12px;color:#6b7280;">BANDIT</span>
+      </div>
+      <div class="vuln-body">
+        <div class="vuln-meta">
+          <span class="item">📄 C:\Users\KISIA\anshim_project\anshim\tests\fixtures\vulnerable_python.py</span>
+          <span class="item">📍 라인 101</span>
+          <span class="item">🔑 bandit.B105</span>
+        </div>
+        
+        <p class="vuln-desc">[B105] hardcoded_password_string: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html</p>
+        
+        
+        <div class="code-block">100 API_KEY = &#34;sk-1234567890abcdef1234567890abcdef&#34;  # noqa: S105
+101 DATABASE_PASSWORD = &#34;super_secret_password_123!&#34;  # noqa: S105
+102 
+</div>
+        
+
+        
+
+        
+
+        
+
+        
+        <div class="detail-section">
+          <h4>📌 컴플라이언스 매핑</h4>
+          <div class="compliance-tags">
+            
+            <span class="comp-tag" title="개인정보 저장 시 암호화 미적용">
+              ISMS-P: 3.2.1
+            </span>
+            
+            <span class="comp-tag" title="하드코딩된 자격증명 (Hard-coded Credentials)">
+              ISMS-P: CWE
+            </span>
+            
+            <span class="comp-tag" title="인증 및 식별 실패 (Identification and Authentication Failures)">
+              ISMS-P: A07
+            </span>
+            
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="vuln-card">
+      <div class="vuln-header">
+        <span class="badge badge-low">LOW</span>
+        <span class="title">Possible hardcoded password: &#39;wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY&#39;</span>
+        <span style="font-size:12px;color:#6b7280;">BANDIT</span>
+      </div>
+      <div class="vuln-body">
+        <div class="vuln-meta">
+          <span class="item">📄 C:\Users\KISIA\anshim_project\anshim\tests\fixtures\vulnerable_python.py</span>
+          <span class="item">📍 라인 105</span>
+          <span class="item">🔑 bandit.B105</span>
+        </div>
+        
+        <p class="vuln-desc">[B105] hardcoded_password_string: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html</p>
+        
+        
+        <div class="code-block">104 AWS_ACCESS_KEY_ID = &#34;AKIAIOSFODNN7EXAMPLE&#34;  # noqa: S105
+105 AWS_SECRET_ACCESS_KEY = &#34;wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY&#34;  # noqa: S105
+106 
+</div>
+        
+
+        
+
+        
+
+        
+
+        
+        <div class="detail-section">
+          <h4>📌 컴플라이언스 매핑</h4>
+          <div class="compliance-tags">
+            
+            <span class="comp-tag" title="개인정보 저장 시 암호화 미적용">
+              ISMS-P: 3.2.1
+            </span>
+            
+            <span class="comp-tag" title="하드코딩된 자격증명 (Hard-coded Credentials)">
+              ISMS-P: CWE
+            </span>
+            
+            <span class="comp-tag" title="인증 및 식별 실패 (Identification and Authentication Failures)">
+              ISMS-P: A07
+            </span>
+            
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="vuln-card">
+      <div class="vuln-header">
+        <span class="badge badge-low">LOW</span>
+        <span class="title">Possible hardcoded password: &#39;admin123&#39;</span>
+        <span style="font-size:12px;color:#6b7280;">BANDIT</span>
+      </div>
+      <div class="vuln-body">
+        <div class="vuln-meta">
+          <span class="item">📄 C:\Users\KISIA\anshim_project\anshim\tests\fixtures\vulnerable_python.py</span>
+          <span class="item">📍 라인 110</span>
+          <span class="item">🔑 bandit.B105</span>
+        </div>
+        
+        <p class="vuln-desc">[B105] hardcoded_password_string: https://bandit.readthedocs.io/en/1.9.4/plugins/b105_hardcoded_password_string.html</p>
+        
+        
+        <div class="code-block">109     &#34;&#34;&#34;하드코딩된 비밀번호로 데이터베이스 연결.&#34;&#34;&#34;
+110     password = &#34;admin123&#34;  # noqa: S105
+111     # 실제로는 연결하지 않음 (테스트용)
+</div>
+        
+
+        
+
+        
+
+        
+
+        
+        <div class="detail-section">
+          <h4>📌 컴플라이언스 매핑</h4>
+          <div class="compliance-tags">
+            
+            <span class="comp-tag" title="개인정보 저장 시 암호화 미적용">
+              ISMS-P: 3.2.1
+            </span>
+            
+            <span class="comp-tag" title="하드코딩된 자격증명 (Hard-coded Credentials)">
+              ISMS-P: CWE
+            </span>
+            
+            <span class="comp-tag" title="인증 및 식별 실패 (Identification and Authentication Failures)">
+              ISMS-P: A07
+            </span>
+            
+          </div>
+        </div>
+        
+      </div>
+    </div>
+    
+    <div class="vuln-card">
+      <div class="vuln-header">
+        <span class="badge badge-low">LOW</span>
+        <span class="title">Use of assert detected. The enclosed code will be removed when compiling to optimised byte code.</span>
+        <span style="font-size:12px;color:#6b7280;">BANDIT</span>
+      </div>
+      <div class="vuln-body">
+        <div class="vuln-meta">
+          <span class="item">📄 C:\Users\KISIA\anshim_project\anshim\tests\fixtures\vulnerable_python.py</span>
+          <span class="item">📍 라인 138</span>
+          <span class="item">🔑 bandit.B101</span>
+        </div>
+        
+        <p class="vuln-desc">[B101] assert_used: https://bandit.readthedocs.io/en/1.9.4/plugins/b101_assert_used.html</p>
+        
+        
+        <div class="code-block">137     &#34;&#34;&#34;
+138     assert user.get(&#34;role&#34;) == &#34;admin&#34;, &#34;Admin only!&#34;  # noqa: S101
+139     return True
+</div>
+        
+
+        
+
+        
+
+        
+
+        
+      </div>
+    </div>
+    
+    
+  </div>
+
+  <div class="footer">
+    AnShim v0.1.0 — 로컬 LLM 기반 보안 코드 감사 도구 | 데이터 외부 전송 없음 (100% 로컬)
+  </div>
+</div>
+</body>
+</html>
