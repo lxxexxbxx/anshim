@@ -1,0 +1,108 @@
+# ISMS / ISMS-P 2.7.2 암호키 관리
+# 관련 조항: 2.7 암호화 적용 - 2.7.2 암호키 관리
+id: 2.7.2-hardcoded-keys
+title: 암호키 하드코딩 및 안전하지 않은 키 관리
+description: |
+  소스코드에 암호키, API 키, 비밀번호 등 민감한 자격증명이 하드코딩된 경우 탐지.
+  하드코딩된 키는 리포지토리 노출 시 즉각적인 보안 위협을 야기하며,
+  키 교체(로테이션) 자체가 불가능해집니다.
+category: "2.7 암호화 적용"
+subcategory: "2.7.2 암호키 관리"
+
+applicable_to:
+  - isms
+  - isms-p
+
+severity: critical
+
+languages:
+  - python
+  - java
+  - javascript
+
+# Semgrep 규칙 ID 매핑
+semgrep_rule_ids:
+  - "python.lang.security.audit.hardcoded-password-string"
+  - "python.lang.security.audit.hardcoded-password-default-arg"
+  - "python.lang.security.audit.hardcoded-api-key"
+  - "java.lang.security.audit.crypto.hardcoded-secret-key"
+  - "javascript.lang.security.audit.hardcoded-credentials"
+  - "generic.secrets.gitleaks.generic-api-key"
+
+# Bandit 테스트 ID 매핑
+bandit_test_ids:
+  - "B105"  # hardcoded_password_string
+  - "B106"  # hardcoded_password_funcarg
+  - "B107"  # hardcoded_password_default
+  - "B108"  # probable_permissive_file_permissions
+
+# 취약한 패턴 예시
+vulnerable_patterns:
+  python:
+    - "SECRET_KEY = \"my-secret-key\""
+    - "API_KEY = \"sk-1234567890abcdef\""
+    - "DB_PASSWORD = \"admin123\""
+    - "ENCRYPTION_KEY = b\"hardcoded-aes-key\""
+    - "JWT_SECRET = \"supersecret\""
+  java:
+    - "private static final String SECRET = \"hardcoded-secret\";"
+    - "String apiKey = \"AKIAIOSFODNN7EXAMPLE\";"
+    - "byte[] key = \"1234567890123456\".getBytes();"
+  javascript:
+    - "const SECRET_KEY = 'my-secret';"
+    - "const JWT_SECRET = 'hardcoded_jwt_secret';"
+    - "process.env.API_KEY = 'sk-1234'"
+
+# 안전한 코드 예시
+safe_patterns:
+  python:
+    - "SECRET_KEY = os.environ['SECRET_KEY']"
+    - "API_KEY = os.getenv('API_KEY', raise_if_missing=True)"
+  java:
+    - "String secret = System.getenv(\"SECRET_KEY\");"
+  javascript:
+    - "const SECRET_KEY = process.env.SECRET_KEY;"
+
+# 수정 권장사항
+remediation:
+  ko: |
+    암호키와 민감한 자격증명은 소스코드에 절대 하드코딩하지 마세요:
+
+    1. 환경변수 사용:
+       - Python: os.environ['SECRET_KEY'] 또는 python-dotenv 활용
+       - Java: System.getenv("SECRET_KEY")
+       - Node.js: process.env.SECRET_KEY
+
+    2. 환경변수 파일 (.env) 사용:
+       - .env 파일을 .gitignore에 추가하여 리포지토리 제외
+       - 예시: SECRET_KEY=your-actual-secret-key
+
+    3. 비밀 관리 서비스 활용 (고급):
+       - HashiCorp Vault, AWS Secrets Manager, Azure Key Vault 등
+
+    4. 기존 키 즉시 교체 및 로테이션 정책 수립
+
+    ※ ISMS 2.7.2 "암호키 관리" 참조
+  en: |
+    Never hardcode cryptographic keys or sensitive credentials in source code:
+
+    1. Use environment variables
+    2. Use .env files (excluded from git)
+    3. Consider secrets management services for production
+
+# 참조 자료
+references:
+  - https://www.kisa.or.kr/public/laws/laws3.jsp
+  - https://cwe.mitre.org/data/definitions/321.html
+  - https://cwe.mitre.org/data/definitions/798.html
+  - https://owasp.org/www-project-top-ten/2017/A3_2017-Sensitive_Data_Exposure
+
+# CWE/OWASP 매핑
+cwe_ids:
+  - "CWE-321"  # Use of Hard-coded Cryptographic Key
+  - "CWE-798"  # Use of Hard-coded Credentials
+  - "CWE-259"  # Use of Hard-coded Password
+
+owasp_ids:
+  - "A02:2021"  # Cryptographic Failures
+  - "A07:2021"  # Identification and Authentication Failures

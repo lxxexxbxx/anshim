@@ -1,0 +1,145 @@
+# ISMS-P 전용: 3.3.1 개인정보 보유 및 파기
+# 관련 조항: 3.3 개인정보 제공/파기 - 3.3.1 개인정보 보유
+id: 3.3.1-personal-info-storage
+title: 개인정보 보유 기간 미설정 및 파기 절차 미비
+description: |
+  개인정보를 보유 기간 제한 없이 저장하거나, 파기 절차 없이 무기한 보관하는 코드 탐지.
+  개인정보보호법 제21조에 따라 개인정보는 수집 목적 달성 후 지체 없이 파기해야 합니다.
+  특히 주민등록번호, 여권번호 등 고유식별정보와 신용정보는 보유 기간 설정이 필수입니다.
+category: "3.3 개인정보 제공 및 파기"
+subcategory: "3.3.1 개인정보 보유"
+
+# ISMS-P 전용 (개인정보 처리 단계별 요구사항)
+applicable_to:
+  - isms-p
+
+severity: high
+
+languages:
+  - python
+  - java
+
+# Semgrep 규칙 ID 매핑
+semgrep_rule_ids:
+  - "python.lang.security.audit.hardcoded-password"
+  - "python.sqlalchemy.security.audit.unencrypted-sensitive-data"
+  - "java.lang.security.audit.password-in-string"
+
+# Bandit 테스트 ID 매핑
+bandit_test_ids:
+  - "B105"
+  - "B106"
+
+# 취약한 패턴 예시 (개인정보 보유 기간 없는 저장)
+vulnerable_patterns:
+  python:
+    - "# 보유 기간 설정 없이 개인정보 저장"
+    - "db.execute(\"INSERT INTO users (ssn, name, phone) VALUES (?, ?, ?)\", (ssn, name, phone))"
+    - "user.rrn = request.form['resident_number']  # 주민등록번호, 만료 없음"
+    - "# DELETE 로직 없음 - 개인정보 무기한 보관"
+    - "class UserModel(Base):"
+    - "    ssn = Column(String)  # 암호화 없음, 보유 기간 없음"
+    - "    credit_card = Column(String)  # 카드번호 평문 저장"
+  java:
+    - "// 보유 기간 없는 개인정보 테이블"
+    - "@Column(name = \"resident_number\")  // 주민등록번호, 만료 없음"
+    - "private String creditCardNumber;  // 카드번호 평문"
+    - "// scheduledDelete 메서드 없음"
+
+# 개인정보 필드 키워드 (탐지용)
+personal_info_keywords:
+  - "ssn"            # Social Security Number
+  - "rrn"            # Resident Registration Number (주민등록번호)
+  - "jumin"          # 주민번호
+  - "resident_number"
+  - "passport_no"    # 여권번호
+  - "credit_card"
+  - "card_number"
+  - "account_number" # 계좌번호
+  - "biometric"
+  - "health_data"    # 건강정보
+  - "medical_record"
+
+# 안전한 코드 예시
+safe_patterns:
+  python:
+    - "# 보유 기간 설정 및 자동 파기"
+    - |
+      class PersonalInfoModel(Base):
+          created_at = Column(DateTime, default=datetime.utcnow)
+          retention_days = Column(Integer, default=365)
+          is_deleted = Column(Boolean, default=False)
+          deleted_at = Column(DateTime, nullable=True)
+    - "# 주기적 파기 스케줄러"
+    - |
+      def purge_expired_personal_info():
+          expiry = datetime.utcnow() - timedelta(days=365)
+          db.query(PersonalInfo).filter(
+              PersonalInfo.created_at < expiry
+          ).delete()
+    - "# 고유식별정보 암호화 저장"
+    - "encrypted_rrn = fernet.encrypt(rrn.encode())"
+  java:
+    - "@Scheduled(cron = \"0 0 2 * * ?\")  // 매일 새벽 2시 파기"
+    - "personalInfoRepository.deleteByCreatedAtBefore(LocalDate.now().minusYears(1));"
+
+# 수정 권장사항
+remediation:
+  ko: |
+    개인정보 보유 기간 관리 및 파기 절차를 구현하세요:
+
+    1. 보유 기간 설정 (DB 스키마):
+       - created_at, retention_days 컬럼 추가
+       - 법정 보유 기간 준수 (회원 탈퇴 후 즉시 또는 최대 1년 이내)
+
+    2. 자동 파기 스케줄러 구현:
+       - 주기적으로 만료된 개인정보 삭제 또는 익명화
+       - 파기 이력 로그 별도 보관
+
+    3. 고유식별정보 암호화 (필수):
+       - 주민등록번호, 여권번호 등은 AES-256 암호화 후 저장
+       - 사용 시 복호화, 보관은 암호화 상태
+
+    4. 개인정보 최소화:
+       - 서비스에 필요한 최소한의 정보만 수집
+       - 불필요한 개인정보 컬럼 삭제
+
+    개인정보 유형별 법정 보유 기간:
+    - 회원 정보: 탈퇴 즉시 (단, 분쟁 해결 목적 최대 1년)
+    - 거래 기록: 5년 (전자상거래 등)
+    - 통화 기록: 1년 (정보통신망법)
+
+    ※ 개인정보보호법 제21조 (개인정보의 파기)
+    ※ ISMS-P 3.3.1 "개인정보 보유" 참조
+  en: |
+    Implement personal information retention and disposal:
+
+    1. Set retention periods in DB schema (created_at + retention_days)
+    2. Implement scheduled deletion/anonymization jobs
+    3. Encrypt personally identifiable information (AES-256)
+    4. Collect minimum necessary personal information
+
+# 참조 자료
+references:
+  - https://www.law.go.kr/법령/개인정보보호법
+  - https://www.pipc.go.kr/
+  - https://www.kisa.or.kr/public/laws/laws3.jsp
+  - https://cwe.mitre.org/data/definitions/359.html
+  - https://cwe.mitre.org/data/definitions/312.html
+
+# CWE/OWASP 매핑
+cwe_ids:
+  - "CWE-359"  # Exposure of Private Personal Information to an Unauthorized Actor
+  - "CWE-312"  # Cleartext Storage of Sensitive Information
+  - "CWE-311"  # Missing Encryption of Sensitive Data
+
+owasp_ids:
+  - "A02:2021"  # Cryptographic Failures
+  - "A04:2021"  # Insecure Design
+
+# 관련 법규
+korean_regulations:
+  - "개인정보보호법 제21조 (개인정보의 파기)"
+  - "개인정보보호법 제24조 (고유식별정보의 처리 제한)"
+  - "개인정보의 안전성 확보조치 기준 제7조 (개인정보의 암호화)"
+  - "정보통신망 이용촉진 및 정보보호 등에 관한 법률 제29조"
