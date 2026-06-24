@@ -47,3 +47,5 @@ anshim-reports/
 htmlcov/
 web/node_modules/
 web/.next/
+docs/demo/reports/
+docs/demo/demo_target/demo.db

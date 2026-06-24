@@ -1,0 +1,108 @@
+# ISMS / ISMS-P 2.9.1 시스템 및 서비스 운영관리
+# 관련 조항: 2.9 시스템 및 서비스 운영관리 - 2.9.1 변경관리
+id: 2.9.1-debug-exposure
+title: 디버그 정보 및 내부 오류 외부 노출
+description: |
+  프로덕션 환경에서 디버그 모드 활성화, 상세 오류 메시지 노출,
+  스택 트레이스 노출 등 내부 정보가 외부에 노출되는 코드 탐지.
+  내부 구조 정보 노출은 공격자가 시스템을 이해하고 공격을 계획하는 데 활용됩니다.
+category: "2.9 시스템 및 서비스 운영관리"
+subcategory: "2.9.1 변경관리"
+
+applicable_to:
+  - isms
+  - isms-p
+
+severity: medium
+
+languages:
+  - python
+  - java
+  - javascript
+
+# Semgrep 규칙 ID 매핑
+semgrep_rule_ids:
+  - "python.flask.security.audit.debug-enabled"
+  - "python.django.security.audit.debug-enabled"
+  - "java.spring.security.audit.spring-debug-enabled"
+  - "javascript.express.security.audit.stacktrace-disclosure"
+
+# Bandit 테스트 ID 매핑
+bandit_test_ids:
+  - "B201"  # flask_debug_true
+
+# 취약한 패턴 예시
+vulnerable_patterns:
+  python:
+    - "app.run(debug=True)"
+    - "DEBUG = True  # 프로덕션 환경"
+    - "app.config['DEBUG'] = True"
+    - "traceback.print_exc()  # 스택 트레이스 출력"
+    - "return jsonify({'error': str(e), 'traceback': traceback.format_exc()})"
+  java:
+    - "e.printStackTrace();"
+    - "response.getWriter().write(e.getMessage());"
+    - "System.out.println(\"Debug: \" + sensitiveData);"
+  javascript:
+    - "console.log(err.stack);"
+    - "res.json({ error: err.stack });"
+    - "app.set('env', 'development');"
+
+# 안전한 코드 예시
+safe_patterns:
+  python:
+    - "DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'"
+    - "app.run(debug=DEBUG)"
+    - "logger.exception('내부 오류 발생')  # 로그만 기록, 응답에는 제네릭 메시지"
+    - "return jsonify({'error': '내부 서버 오류가 발생했습니다.'}), 500"
+  java:
+    - "logger.error(\"Internal error\", e);  // 로그에만 기록"
+    - "response.sendError(500, \"Internal Server Error\");"
+  javascript:
+    - "logger.error(err);  // 로그에만"
+    - "res.status(500).json({ error: '서버 오류가 발생했습니다.' });"
+
+# 수정 권장사항
+remediation:
+  ko: |
+    프로덕션 환경에서 디버그 정보 노출을 방지하세요:
+
+    1. 환경별 설정 분리:
+       - 개발: DEBUG=True (로컬만)
+       - 프로덕션: DEBUG=False (기본값)
+       - 환경변수로 제어: DEBUG = os.getenv('DEBUG', 'False') == 'True'
+
+    2. 예외 처리:
+       - 내부 오류는 로그에만 기록 (logging.exception())
+       - 사용자에게는 일반적인 오류 메시지만 반환
+       - 스택 트레이스, DB 쿼리, 파일 경로 등을 응답에 포함하지 않음
+
+    3. 오류 페이지 커스터마이징:
+       - Flask: @app.errorhandler(500)
+       - Spring Boot: @ControllerAdvice + @ExceptionHandler
+       - Express: app.use((err, req, res, next) => {...})
+
+    ※ ISMS 2.9.1 "변경관리" 참조
+  en: |
+    Prevent debug information exposure in production:
+
+    1. Separate environment configurations (dev/staging/prod)
+    2. Log errors internally, return generic messages to users
+    3. Customize error pages to hide stack traces
+
+# 참조 자료
+references:
+  - https://www.kisa.or.kr/public/laws/laws3.jsp
+  - https://cwe.mitre.org/data/definitions/215.html
+  - https://cwe.mitre.org/data/definitions/209.html
+  - https://owasp.org/www-project-top-ten/2021/A05_2021-Security_Misconfiguration
+
+# CWE/OWASP 매핑
+cwe_ids:
+  - "CWE-215"  # Insertion of Sensitive Information Into Debugging Code
+  - "CWE-209"  # Generation of Error Message Containing Sensitive Information
+  - "CWE-200"  # Exposure of Sensitive Information to an Unauthorized Actor
+
+owasp_ids:
+  - "A05:2021"  # Security Misconfiguration
+  - "A09:2021"  # Security Logging and Monitoring Failures

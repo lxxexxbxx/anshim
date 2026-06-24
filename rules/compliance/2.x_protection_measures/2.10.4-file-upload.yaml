@@ -1,0 +1,113 @@
+# ISMS / ISMS-P 2.10.4 파일 업로드/다운로드 취약점
+# 관련 조항: 2.10 시스템 및 서비스 보안관리 - 2.10.3 공개서버 보안
+id: 2.10.4-file-upload
+title: 파일 업로드/다운로드 취약점
+description: |
+  파일 업로드 시 확장자 검증 미비, 저장 경로 미검증, 악성 파일 실행 가능성 등
+  파일 처리 관련 취약점 탐지. 파일 다운로드 시 경로 탐색(Path Traversal) 취약점도 포함.
+  공격자는 이 취약점을 이용해 웹쉘 업로드, 임의 파일 접근 등을 수행할 수 있습니다.
+category: "2.10 시스템 및 서비스 보안관리"
+subcategory: "2.10.3 공개서버 보안"
+
+applicable_to:
+  - isms
+  - isms-p
+
+severity: high
+
+languages:
+  - python
+  - java
+  - javascript
+
+# Semgrep 규칙 ID 매핑
+semgrep_rule_ids:
+  - "python.flask.security.audit.file-upload-no-extension-check"
+  - "python.lang.security.audit.path-traversal"
+  - "java.lang.security.audit.file-path-injection"
+  - "javascript.express.security.audit.file-upload-injection"
+
+# Bandit 테스트 ID 매핑
+bandit_test_ids: []
+
+# 취약한 패턴 예시
+vulnerable_patterns:
+  python:
+    - "filename = request.files['file'].filename  # 검증 없이 사용"
+    - "file.save(os.path.join(upload_dir, filename))  # 경로 탐색 가능"
+    - "open(request.args.get('file'), 'rb')  # Path Traversal"
+    - "subprocess.run(['cat', user_filename])  # 명령어 인젝션"
+    - "# 확장자 화이트리스트 없음"
+  java:
+    - "String filename = request.getParameter(\"filename\");"
+    - "new File(uploadDir + filename)  // 경로 검증 없음"
+    - "file.transferTo(new File(targetDir + originalFilename));"
+  javascript:
+    - "const filename = req.file.originalname;  // 검증 없이 사용"
+    - "fs.readFile(req.query.file, ...)  // Path Traversal"
+    - "res.download(path.join(__dirname, req.params.filename))  // 위험"
+
+# 안전한 코드 예시
+safe_patterns:
+  python:
+    - "from werkzeug.utils import secure_filename"
+    - "ALLOWED_EXTENSIONS = {'png', 'jpg', 'pdf', 'docx'}"
+    - |
+      def allowed_file(filename):
+          return '.' in filename and \
+              filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    - "filename = secure_filename(file.filename)"
+    - "safe_path = os.path.realpath(os.path.join(upload_dir, filename))"
+    - "assert safe_path.startswith(os.path.realpath(upload_dir))"
+  java:
+    - "String safeFilename = FilenameUtils.getName(originalFilename);"
+    - "Path uploadPath = Paths.get(uploadDir).resolve(safeFilename).normalize();"
+    - "if (!uploadPath.startsWith(Paths.get(uploadDir))) throw new SecurityException();"
+  javascript:
+    - "const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];"
+    - "const safeName = path.basename(req.file.originalname);"
+
+# 수정 권장사항
+remediation:
+  ko: |
+    파일 업로드/다운로드 처리 시 반드시 다음 보안 조치를 적용하세요:
+
+    파일 업로드:
+    1. 확장자 화이트리스트 검증 (블랙리스트 방식 금지)
+       ALLOWED = {'jpg', 'png', 'pdf', 'xlsx', 'docx'}
+    2. MIME 타입 실제 검증 (파일 내용 검사)
+    3. 파일명 무해화: werkzeug.utils.secure_filename() 사용
+    4. 업로드 디렉토리를 웹 루트 외부에 배치
+    5. 저장 시 랜덤 파일명으로 변경 (원본명 사용 금지)
+    6. 실행 권한 부여 금지
+
+    파일 다운로드 (Path Traversal 방어):
+    1. os.path.realpath()로 절대 경로 변환
+    2. 허용된 디렉토리 내에 있는지 확인
+    3. 사용자 입력을 파일 경로에 직접 사용 금지
+    4. werkzeug.utils.safe_join() 또는 equivalent 사용
+
+    ※ ISMS 2.10.3 "공개서버 보안" 참조
+  en: |
+    Apply these security measures for file upload/download:
+
+    Upload: Whitelist extensions, validate MIME type, sanitize filenames, store outside web root
+    Download: Validate path against allowed directory, prevent path traversal
+
+# 참조 자료
+references:
+  - https://www.kisa.or.kr/public/laws/laws3.jsp
+  - https://owasp.org/www-community/vulnerabilities/Unrestricted_File_Upload
+  - https://cwe.mitre.org/data/definitions/22.html
+  - https://cwe.mitre.org/data/definitions/434.html
+  - https://owasp.org/www-project-web-security-testing-guide/latest/4-Web_Application_Security_Testing/10-Business_Logic_Testing/09-Test_Upload_of_Malicious_Files
+
+# CWE/OWASP 매핑
+cwe_ids:
+  - "CWE-22"   # Improper Limitation of a Pathname to a Restricted Directory (Path Traversal)
+  - "CWE-434"  # Unrestricted Upload of File with Dangerous Type
+  - "CWE-73"   # External Control of File Name or Path
+
+owasp_ids:
+  - "A01:2021"  # Broken Access Control
+  - "A03:2021"  # Injection
