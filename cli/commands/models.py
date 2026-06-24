@@ -18,6 +18,7 @@ from anshim.core.models import (
     get_model_info,
     get_recommended_model,
 )
+from anshim.core.utils.hardware import detect_hardware, recommend_model
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -168,18 +169,27 @@ def recommend_models(
     console.print("[bold]모델 추천[/bold]")
     console.print()
 
-    # 하드웨어 감지는 Sprint 6에서 구현
-    console.print("[dim]* 하드웨어 자동 감지는 Sprint 6에서 구현 예정입니다.[/dim]")
+    # 하드웨어 감지
+    console.print("[dim]하드웨어 감지 중...[/dim]")
+    hw = detect_hardware()
+
+    hw_info = f"RAM: {hw.ram_gb:.1f}GB"
+    if hw.has_gpu:
+        hw_info += f"  |  GPU: {hw.gpu_name}  |  VRAM: {hw.gpu_vram_gb:.1f}GB"
+    else:
+        hw_info += "  |  GPU: 없음 (CPU 모드)"
+    console.print(f"[dim]{hw_info}[/dim]")
     console.print()
 
-    # 기본 추천 모델
-    recommended = get_recommended_model()
-    console.print("[bold cyan]기본 추천 모델[/bold cyan]")
-    console.print(f"  모델: [green]{recommended.name}[/green]")
-    console.print(f"  이름: {recommended.display_name}")
-    console.print(f"  필요 VRAM: {recommended.min_vram_gb}GB")
-    console.print(f"  한국어: {'지원' if recommended.korean_support else '미지원'}")
-    console.print(f"  설명: {recommended.description}")
+    # 하드웨어 기반 추천 모델
+    rec_name, rec_reason = recommend_model(hw)
+    console.print("[bold cyan]하드웨어 기반 추천 모델[/bold cyan]")
+    console.print(f"  모델: [green]{rec_name}[/green]")
+    console.print(f"  이유: [dim]{rec_reason}[/dim]")
+
+    model_info_obj = get_model_info(rec_name)
+    if model_info_obj:
+        console.print(f"  설명: {model_info_obj.description}")
     console.print()
 
     # VRAM별 추천 가이드
@@ -207,7 +217,7 @@ def recommend_models(
 
     # 설치 안내
     console.print("[bold cyan]모델 설치 방법[/bold cyan]")
-    console.print(f"  [cyan]anshim models pull {recommended.name}[/cyan]")
+    console.print(f"  [cyan]anshim models pull {rec_name}[/cyan]")
 
     if verbose:
         console.print()

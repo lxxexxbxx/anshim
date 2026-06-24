@@ -5,6 +5,7 @@ scan 명령어 - 코드 보안 스캔.
 """
 
 import logging
+import webbrowser
 from pathlib import Path
 
 import typer
@@ -17,6 +18,7 @@ from anshim.core.analyzers import HybridAnalyzer, HybridScanResult
 from anshim.core.db import save_hybrid_result
 from anshim.core.models import get_recommended_model
 from anshim.core.reporters import get_reporter
+from anshim.core.utils.config_manager import get_config
 
 logger = logging.getLogger(__name__)
 console = Console()
@@ -47,17 +49,17 @@ def scan_command(
         dir_okay=True,
         resolve_path=True,
     ),
-    compliance: str = typer.Option(
-        "isms-p",
+    compliance: str | None = typer.Option(
+        None,
         "--compliance",
         "-c",
-        help="컴플라이언스 선택 (쉼표로 구분: isms, isms-p, owasp, cwe, all)",
+        help="컴플라이언스 선택 (쉼표로 구분: isms, isms-p, owasp, cwe, all). 미지정 시 config.yaml 기본값 사용",
     ),
     model: str | None = typer.Option(
         None,
         "--model",
         "-m",
-        help="사용할 LLM 모델 (예: exaone3.5:7.8b, qwen2.5-coder:14b)",
+        help="사용할 LLM 모델. 미지정 시 config.yaml 기본값 사용",
     ),
     output: Path | None = typer.Option(
         None,
@@ -101,6 +103,11 @@ def scan_command(
         "--no-db",
         help="DB 저장 건너뛰기",
     ),
+    open_report: bool = typer.Option(
+        False,
+        "--open",
+        help="스캔 완료 후 HTML 리포트를 브라우저로 자동 오픈",
+    ),
     verbose: bool = typer.Option(
         False,
         "--verbose",
@@ -120,15 +127,19 @@ def scan_command(
     else:
         logging.basicConfig(level=logging.INFO)
 
+    # config.yaml에서 기본값 읽기 (CLI 플래그 > config > 하드코딩 기본값)
+    cfg = get_config()
+
     console.print("\n[bold blue]AnShim 보안 코드 스캔[/bold blue]")
     console.print(f"대상: [cyan]{target}[/cyan]\n")
 
-    # 컴플라이언스 파싱
-    compliance_list = [c.strip().lower() for c in compliance.split(",")]
+    # 컴플라이언스 파싱 (CLI 미지정 시 config 기본값)
+    effective_compliance = compliance or cfg.compliance
+    compliance_list = [c.strip().lower() for c in effective_compliance.split(",")]
     console.print(f"컴플라이언스: [green]{', '.join(compliance_list)}[/green]")
 
-    # 모델 결정 (지정되지 않으면 기본 추천 모델 사용)
-    selected_model = model or get_recommended_model().name
+    # 모델 결정 (CLI 미지정 시 config > 추천 모델 순)
+    selected_model = model or cfg.model or get_recommended_model().name
 
     # 분석 모드 표시
     if rule_only:
@@ -149,8 +160,16 @@ def scan_command(
     )
 
     # 분석기 상태 확인
+    status = analyzer.get_status()
+    if not rule_only:
+        if not status.get("semgrep"):
+            console.print("[yellow]⚠ Semgrep 미설치: pip install semgrep[/yellow]")
+        if not status.get("bandit"):
+            console.print("[yellow]⚠ Bandit 미설치: pip install bandit[/yellow]")
+        if not status.get("ollama") and not rule_only:
+            console.print("[yellow]⚠ Ollama 미실행: ollama serve 로 시작 후 LLM 분석 가능[/yellow]")
+
     if verbose:
-        status = analyzer.get_status()
         console.print("[dim]분석기 상태:[/dim]")
         console.print(f"  Semgrep: {'[green]사용 가능[/green]' if status.get('semgrep') else '[red]미설치[/red]'}")
         console.print(f"  Bandit: {'[green]사용 가능[/green]' if status.get('bandit') else '[red]미설치[/red]'}")
@@ -184,7 +203,7 @@ def scan_command(
     _print_results(result, verbose)
 
     # 리포트 생성
-    _generate_reports(
+    generated = _generate_reports(
         result=result,
         scan_id=scan_id,
         output=output,
@@ -192,6 +211,12 @@ def scan_command(
         excel=excel,
         json_output=json_output,
     )
+
+    # --open: HTML 리포트 브라우저 자동 오픈
+    if open_report and generated:
+        html_reports = [p for p in generated if p.suffix == ".html"]
+        if html_reports:
+            webbrowser.open(html_reports[0].as_uri())
 
     # 종료 코드 결정 (critical/high 이슈 있으면 1)
     if result.critical_count > 0 or result.high_count > 0:
@@ -411,7 +436,7 @@ def _generate_reports(
     html: bool,
     excel: bool,
     json_output: bool,
-) -> None:
+) -> list[Path]:
     """스캔 결과를 파일 리포트로 저장.
 
     Args:
@@ -421,6 +446,9 @@ def _generate_reports(
         html: HTML 생성 여부.
         excel: Excel 생성 여부.
         json_output: JSON 생성 여부.
+
+    Returns:
+        생성된 리포트 파일 경로 목록.
     """
     out_dir = output or Path.cwd()
     generated: list[Path] = []
@@ -452,3 +480,5 @@ def _generate_reports(
                 border_style="green",
             )
         )
+
+    return generated
