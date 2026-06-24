@@ -26,7 +26,7 @@ class TestMainCLI:
         result = runner.invoke(app, ["--version"])
         assert result.exit_code == 0
         assert "AnShim" in result.output
-        assert "0.1.0" in result.output
+        assert "0.2.0" in result.output
 
     def test_no_command(self) -> None:
         """명령어 없이 실행 시 도움말 표시."""

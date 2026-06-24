@@ -5,5 +5,5 @@ AnShim (안심) - 한국 기업을 위한 로컬 LLM 기반 보안 코드 감사
 코드 보안 감사 결과를 제공하는 오픈소스 도구입니다.
 """
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 __author__ = "AnShim Contributors"
