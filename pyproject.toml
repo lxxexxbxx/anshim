@@ -61,10 +61,10 @@ dev = [
 anshim = "anshim.cli.main:app"
 
 [project.urls]
-Homepage = "https://github.com/anshim/anshim"
-Documentation = "https://github.com/anshim/anshim/docs"
-Repository = "https://github.com/anshim/anshim"
-Issues = "https://github.com/anshim/anshim/issues"
+Homepage = "https://github.com/lxxexxbbb/anshim"
+Documentation = "https://github.com/lxxexxbbb/anshim/tree/main/docs"
+Repository = "https://github.com/lxxexxbbb/anshim"
+Issues = "https://github.com/lxxexxbbb/anshim/issues"
 
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
@@ -97,12 +97,24 @@ ignore = [
 [tool.ruff.lint.isort]
 known-first-party = ["anshim"]
 
+[tool.ruff.lint.per-file-ignores]
+# 테스트 파일에서는 assert 사용이 표준 패턴이므로 S101(flake8-bandit)을 제외
+"tests/*" = ["S101"]
+
 [tool.mypy]
 python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
+
+[[tool.mypy.overrides]]
+# SQLAlchemy 레거시 declarative 스타일(Column())은 mypy가 'var-annotated' 오류를
+# 발생시키지만 런타임에는 정상 동작한다. 전체 모델을 mapped_column()/Mapped[]
+# 방식으로 마이그레이션하기 전까지는 이 모듈의 var-annotated 오류를 억제한다.
+module = "anshim.core.db.models"
+warn_return_any = false
+disallow_untyped_defs = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

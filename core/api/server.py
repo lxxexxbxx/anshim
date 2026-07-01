@@ -1,6 +1,7 @@
 """FastAPI 웹 API 서버."""
 
 import logging
+from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -215,8 +216,6 @@ async def create_scan(
     background_tasks: BackgroundTasks,
 ) -> ScanCreateResponse:
     """새 스캔 시작 (비동기 백그라운드 실행)."""
-    from pathlib import Path
-
     target = Path(request.target_path)
     if not target.exists():
         raise HTTPException(status_code=400, detail=f"경로가 존재하지 않습니다: {request.target_path}")
@@ -239,11 +238,10 @@ async def create_scan(
             from anshim.core.db.repository import save_hybrid_result
 
             analyzer = HybridAnalyzer(
-                target_path=target_path,
                 compliance_types=[compliance],
                 model=model,
             )
-            result = analyzer.analyze()
+            result = analyzer.analyze(Path(target_path))
             save_hybrid_result(result)
         except Exception as exc:
             logger.error("백그라운드 스캔 실패 (%s): %s", scan_id[:8], exc)

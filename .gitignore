@@ -40,6 +40,7 @@ Thumbs.db
 .anshim/
 anshim-reports/
 *.db
+anshim_report_*.html
 
 # 기타
 .aider*

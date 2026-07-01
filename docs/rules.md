@@ -5,6 +5,17 @@
 AnShim의 룰셋은 YAML 파일로 관리됩니다.
 새 보안 룰을 추가하려면 적절한 디렉토리에 YAML 파일을 만들면 됩니다.
 
+> **⚠️ 중요: 이 YAML 룰은 Semgrep 룰 형식이 아닙니다.**
+> `rules/owasp/`, `rules/cwe/`, `rules/compliance/`의 YAML 파일은 Semgrep이
+> 직접 실행하는 탐지 규칙이 아니라, **컴플라이언스 매핑용 메타데이터**입니다
+> (`core/compliance/loader.py`가 읽어서 ISMS/ISMS-P 항목과 매핑하는 데 사용).
+> 실제 정적 분석(코드 탐지)은 Semgrep CLI가 자체 레지스트리 설정
+> (`p/python`, `p/javascript` 등)을 사용해 별도로 수행하며, Bandit은
+> 자체 내장 룰을 사용합니다. 즉 이 디렉토리에 룰을 추가해도 Semgrep/Bandit의
+> 탐지 결과 자체는 늘어나지 않으며, 탐지된 `rule_id`(예: `CWE-89-sql-injection`,
+> `2.10.1-sql-injection`)와 매칭되는 항목이 있을 때만 컴플라이언스 항목이
+> 리포트에 표시됩니다. 자세한 매칭 방식은 `docs/compliance_mapping.md` 참고.
+
 ---
 
 ## 디렉토리 구조
