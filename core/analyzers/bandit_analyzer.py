@@ -3,9 +3,10 @@
 
 import json
 import logging
-import shutil
 import subprocess
 from pathlib import Path
+
+from anshim.core.utils.executable_finder import find_executable
 
 from .models import AnalysisResult
 
@@ -35,7 +36,7 @@ class BanditAnalyzer:
 
     def __init__(self) -> None:
         """BanditAnalyzer 초기화."""
-        self._bandit_path: str | None = shutil.which("bandit")
+        self._bandit_path: str | None = find_executable("bandit")
 
     def is_available(self) -> bool:
         """Bandit 설치 여부 확인.
@@ -70,7 +71,7 @@ class BanditAnalyzer:
         try:
             # Bandit 명령 구성
             cmd = [
-                "bandit",
+                self._bandit_path or "bandit",
                 "-r",  # 재귀적 스캔
                 "-f", "json",  # JSON 출력
                 "-q",  # 조용한 모드 (배너 없음)

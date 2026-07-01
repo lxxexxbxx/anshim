@@ -98,8 +98,8 @@ def init_command(
             else:
                 console.print("   [yellow]설치된 모델 없음 — 아래 명령어로 설치하세요[/yellow]")
                 console.print(f"   [cyan]anshim models pull {rec_model}[/cyan]")
-        except Exception:
-            pass
+        except Exception as exc:
+            logger.warning("Ollama 모델 목록 조회 실패: %s", exc)
     else:
         console.print("   [yellow]✗ Ollama 미실행[/yellow]")
         console.print("   Ollama 설치: https://ollama.com")

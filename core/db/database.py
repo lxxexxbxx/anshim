@@ -11,6 +11,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from anshim.core.db.models import Base
@@ -20,6 +21,29 @@ logger = logging.getLogger(__name__)
 # 기본 데이터베이스 경로: ~/.anshim/anshim.db
 DEFAULT_DB_DIR = Path.home() / ".anshim"
 DEFAULT_DB_PATH = DEFAULT_DB_DIR / "anshim.db"
+
+# db_path별 엔진 및 세션 팩토리 캐시
+# 주의: 과거에는 단일 전역 변수(_engine, _SessionFactory)로 구현되어 있어
+# 서로 다른 db_path로 호출해도 최초 생성된 엔진만 재사용되는 버그가 있었음.
+# (예: ScanRepository(path_a) 이후 ScanRepository(path_b)를 호출해도
+#  내부적으로는 계속 path_a에 바인딩된 엔진을 사용 -> 잘못된/닫힌 DB에
+#  쓰기를 시도하여 "attempt to write a readonly database" 등의 오류 발생)
+# db_path를 캐시 키로 사용해 경로별로 별도의 엔진을 유지하도록 수정.
+_engines: dict[str, Engine] = {}
+_session_factories: dict[str, sessionmaker] = {}
+
+
+def _cache_key(db_path: Path | None) -> str:
+    """엔진 캐시에 사용할 키를 생성합니다.
+
+    Args:
+        db_path: 데이터베이스 파일 경로. None이면 기본 경로로 정규화.
+
+    Returns:
+        캐시 키 문자열.
+    """
+    resolved = db_path if db_path is not None else DEFAULT_DB_PATH
+    return str(Path(resolved).resolve())
 
 
 def get_db_url(db_path: Path | None = None) -> str:
@@ -35,6 +59,36 @@ def get_db_url(db_path: Path | None = None) -> str:
     if db_path is None:
         db_path = DEFAULT_DB_PATH
     return f"sqlite:///{db_path}"
+
+
+def get_engine(db_path: Path | None = None) -> Engine:
+    """
+    SQLAlchemy 엔진을 반환합니다.
+
+    db_path별로 캐싱되어, 동일한 경로에 대해서는 같은 엔진 인스턴스를
+    재사용하지만 서로 다른 경로에 대해서는 별도의 엔진을 생성합니다.
+    """
+    key = _cache_key(db_path)
+    if key not in _engines:
+        _engines[key] = create_engine(get_db_url(db_path), echo=False)
+    return _engines[key]
+
+
+def get_session_factory(db_path: Path | None = None) -> sessionmaker:
+    """
+    세션 팩토리를 반환합니다.
+
+    Args:
+        db_path: 데이터베이스 파일 경로.
+
+    Returns:
+        SQLAlchemy sessionmaker
+    """
+    key = _cache_key(db_path)
+    if key not in _session_factories:
+        engine = get_engine(db_path)
+        _session_factories[key] = sessionmaker(bind=engine, expire_on_commit=False)
+    return _session_factories[key]
 
 
 def init_db(db_path: Path | None = None) -> None:
@@ -62,8 +116,8 @@ def init_db(db_path: Path | None = None) -> None:
             # Windows에서는 chmod가 제한적으로 동작
             pass
 
-    # 엔진 생성 및 테이블 초기화
-    engine = create_engine(get_db_url(db_path), echo=False)
+    # 엔진 생성 및 테이블 초기화 (db_path별 캐시된 엔진 재사용)
+    engine = get_engine(db_path)
     Base.metadata.create_all(engine)
     logger.info(f"데이터베이스 초기화 완료: {db_path}")
 
@@ -73,40 +127,6 @@ def init_db(db_path: Path | None = None) -> None:
             os.chmod(db_path, 0o600)
         except (OSError, AttributeError):
             pass
-
-
-# 전역 엔진 및 세션 팩토리
-_engine = None
-_SessionFactory = None
-
-
-def get_engine(db_path: Path | None = None):
-    """
-    SQLAlchemy 엔진을 반환합니다.
-
-    싱글톤 패턴으로 한 번만 생성됩니다.
-    """
-    global _engine
-    if _engine is None:
-        _engine = create_engine(get_db_url(db_path), echo=False)
-    return _engine
-
-
-def get_session_factory(db_path: Path | None = None) -> sessionmaker:
-    """
-    세션 팩토리를 반환합니다.
-
-    Args:
-        db_path: 데이터베이스 파일 경로.
-
-    Returns:
-        SQLAlchemy sessionmaker
-    """
-    global _SessionFactory
-    if _SessionFactory is None:
-        engine = get_engine(db_path)
-        _SessionFactory = sessionmaker(bind=engine, expire_on_commit=False)
-    return _SessionFactory
 
 
 @contextmanager
@@ -139,12 +159,12 @@ def get_db(db_path: Path | None = None) -> Generator[Session, None, None]:
 
 def reset_engine() -> None:
     """
-    엔진과 세션 팩토리를 리셋합니다.
+    모든 엔진과 세션 팩토리를 리셋합니다.
 
-    테스트에서 사용됩니다.
+    테스트에서 사용됩니다. db_path별로 캐싱된 모든 엔진을 dispose하고
+    캐시를 비웁니다.
     """
-    global _engine, _SessionFactory
-    if _engine is not None:
-        _engine.dispose()
-    _engine = None
-    _SessionFactory = None
+    for engine in _engines.values():
+        engine.dispose()
+    _engines.clear()
+    _session_factories.clear()

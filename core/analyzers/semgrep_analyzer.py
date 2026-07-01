@@ -3,9 +3,10 @@
 
 import json
 import logging
-import shutil
 import subprocess
 from pathlib import Path
+
+from anshim.core.utils.executable_finder import find_executable
 
 from .models import AnalysisResult
 
@@ -37,7 +38,7 @@ class SemgrepAnalyzer:
 
     def __init__(self) -> None:
         """SemgrepAnalyzer 초기화."""
-        self._semgrep_path: str | None = shutil.which("semgrep")
+        self._semgrep_path: str | None = find_executable("semgrep")
 
     def is_available(self) -> bool:
         """Semgrep 설치 여부 확인.
@@ -90,7 +91,7 @@ class SemgrepAnalyzer:
                 configs = ["--config", "p/default"]
 
             cmd = [
-                "semgrep",
+                self._semgrep_path or "semgrep",
                 "--json",
                 *configs,
                 "--no-git-ignore",  # .gitignore 무시 (테스트 코드도 분석)
@@ -112,9 +113,22 @@ class SemgrepAnalyzer:
             if result.stdout:
                 return self._parse_output(result.stdout, languages)
 
-            if result.returncode != 0 and result.stderr:
-                # Semgrep은 경고도 stderr로 출력하므로 로그만 남김
-                logger.debug(f"Semgrep stderr: {result.stderr}")
+            if result.returncode != 0:
+                stderr = result.stderr or ""
+                # Semgrep 룰셋(p/python 등)은 semgrep.dev 레지스트리에서
+                # 다운로드되므로, 망분리/오프라인 환경에서는 설정 로드 자체가
+                # 실패할 수 있다. 이 경우를 "취약점 없음"과 명확히 구분하여
+                # 경고로 표시한다 (그렇지 않으면 0건 결과가 안전하다는
+                # 오해를 줄 수 있음).
+                if "Failed to download configuration" in stderr or "HTTP 403" in stderr:
+                    logger.warning(
+                        "Semgrep 룰셋(레지스트리) 다운로드에 실패했습니다. "
+                        "인터넷 연결이 차단된 환경(망분리 등)에서는 "
+                        "semgrep.dev 레지스트리 룰을 사용할 수 없습니다. "
+                        "로컬 룰 파일을 --config로 직접 지정하는 방식을 검토하세요."
+                    )
+                else:
+                    logger.debug(f"Semgrep stderr: {stderr}")
 
             return []
 

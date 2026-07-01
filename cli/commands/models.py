@@ -16,7 +16,6 @@ from anshim.core.models import (
     OllamaClient,
     OllamaNotRunningError,
     get_model_info,
-    get_recommended_model,
 )
 from anshim.core.utils.hardware import detect_hardware, recommend_model
 
