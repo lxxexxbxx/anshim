@@ -8,7 +8,10 @@
 import json
 import logging
 import re
+import threading
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +24,76 @@ logger = logging.getLogger(__name__)
 
 # 프롬프트 템플릿 디렉토리
 PROMPT_DIR = Path(__file__).parent.parent / "prompts" / "ko"
+
+
+@dataclass
+class LLMMetrics:
+    """LLM 호출 계측값.
+
+    "측정하지 않은 것은 주장하지 않는다"(설계 원칙 5)를 지키려면 LLM 레이어의
+    비용과 실패율을 실제 실행 경로에서 수집해야 한다. 벤치마크 전용 경로를
+    따로 만들면 측정 대상이 실제 동작과 달라진다.
+
+    Attributes:
+        call_count: Ollama generate 호출 횟수.
+        total_seconds: 호출에 소요된 총 시간.
+        error_count: 호출 자체가 예외로 실패한 횟수.
+        parse_attempts: JSON 파싱을 시도한 횟수.
+        parse_failures: JSON 파싱에 실패한 횟수. 소형 모델의 주된 실패 형태다.
+    """
+
+    call_count: int = 0
+    total_seconds: float = 0.0
+    error_count: int = 0
+    parse_attempts: int = 0
+    parse_failures: int = 0
+    _lock: threading.Lock = field(default_factory=threading.Lock, repr=False)
+
+    @property
+    def average_seconds(self) -> float:
+        """호출 1회당 평균 소요 시간."""
+        return self.total_seconds / self.call_count if self.call_count else 0.0
+
+    @property
+    def parse_failure_rate(self) -> float:
+        """JSON 파싱 실패율 (0.0 ~ 1.0)."""
+        return self.parse_failures / self.parse_attempts if self.parse_attempts else 0.0
+
+    def record_call(self, elapsed_seconds: float, failed: bool = False) -> None:
+        """LLM 호출 1건을 기록합니다.
+
+        Args:
+            elapsed_seconds: 호출에 걸린 시간.
+            failed: 호출이 예외로 실패했으면 True.
+        """
+        with self._lock:
+            self.call_count += 1
+            self.total_seconds += elapsed_seconds
+            if failed:
+                self.error_count += 1
+
+    def record_parse(self, succeeded: bool) -> None:
+        """JSON 파싱 시도 1건을 기록합니다.
+
+        Args:
+            succeeded: 파싱에 성공했으면 True.
+        """
+        with self._lock:
+            self.parse_attempts += 1
+            if not succeeded:
+                self.parse_failures += 1
+
+    def as_dict(self) -> dict[str, float | int]:
+        """직렬화 가능한 형태로 변환합니다."""
+        return {
+            "call_count": self.call_count,
+            "total_seconds": round(self.total_seconds, 3),
+            "average_seconds": round(self.average_seconds, 3),
+            "error_count": self.error_count,
+            "parse_attempts": self.parse_attempts,
+            "parse_failures": self.parse_failures,
+            "parse_failure_rate": round(self.parse_failure_rate, 4),
+        }
 
 
 class LLMAnalyzer:
@@ -49,6 +122,7 @@ class LLMAnalyzer:
         self.model = model
         self.ollama_client = ollama_client or OllamaClient()
         self._ollama_available: bool | None = None
+        self.metrics = LLMMetrics()
 
         # Jinja2 템플릿 환경 설정
         self.template_env = Environment(
@@ -93,11 +167,7 @@ class LLMAnalyzer:
             )
 
             # LLM 응답 생성
-            analysis_response = self.ollama_client.generate(
-                model=self.model,
-                prompt=analysis_prompt,
-                timeout=timeout,
-            )
+            analysis_response = self._generate(analysis_prompt, timeout)
 
             # JSON 파싱
             analysis_data = self._parse_json_response(analysis_response)
@@ -153,11 +223,7 @@ class LLMAnalyzer:
         """
         try:
             prompt = self._render_template("attack_scenario.jinja2", result)
-            response = self.ollama_client.generate(
-                model=self.model,
-                prompt=prompt,
-                timeout=timeout,
-            )
+            response = self._generate(prompt, timeout)
             return self._parse_json_response(response)
         except Exception as e:
             logger.debug("공격 시나리오 생성 실패: %s", e)
@@ -179,11 +245,7 @@ class LLMAnalyzer:
         """
         try:
             prompt = self._render_template("fix_suggestion.jinja2", result)
-            response = self.ollama_client.generate(
-                model=self.model,
-                prompt=prompt,
-                timeout=timeout,
-            )
+            response = self._generate(prompt, timeout)
             return self._parse_json_response(response)
         except Exception as e:
             logger.debug("수정 제안 생성 실패: %s", e)
@@ -281,6 +343,33 @@ class LLMAnalyzer:
             language=self._detect_language(result.file_path),
         )
 
+    def _generate(self, prompt: str, timeout: int) -> str:
+        """Ollama 호출을 계측과 함께 수행합니다.
+
+        Args:
+            prompt: 전달할 프롬프트.
+            timeout: 타임아웃 (초).
+
+        Returns:
+            LLM 응답 문자열.
+
+        Raises:
+            Exception: Ollama 클라이언트가 던지는 예외를 그대로 전파한다.
+        """
+        started = time.perf_counter()
+        failed = False
+        try:
+            return self.ollama_client.generate(
+                model=self.model,
+                prompt=prompt,
+                timeout=timeout,
+            )
+        except Exception:
+            failed = True
+            raise
+        finally:
+            self.metrics.record_call(time.perf_counter() - started, failed=failed)
+
     def _parse_json_response(self, response: str) -> dict[str, Any] | None:
         """LLM 응답에서 JSON 추출.
 
@@ -291,30 +380,41 @@ class LLMAnalyzer:
             파싱된 딕셔너리 또는 None.
         """
         if not response:
+            self.metrics.record_parse(succeeded=False)
             return None
 
         # JSON 블록 추출 시도 (```json ... ```)
         json_match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", response)
         if json_match:
             try:
-                return json.loads(json_match.group(1))
+                parsed = json.loads(json_match.group(1))
             except json.JSONDecodeError:
                 pass
+            else:
+                self.metrics.record_parse(succeeded=True)
+                return parsed
 
         # 전체 응답이 JSON인 경우
         try:
-            return json.loads(response.strip())
+            parsed = json.loads(response.strip())
         except json.JSONDecodeError:
             pass
+        else:
+            self.metrics.record_parse(succeeded=True)
+            return parsed
 
         # { ... } 패턴 추출
         brace_match = re.search(r"\{[\s\S]*\}", response)
         if brace_match:
             try:
-                return json.loads(brace_match.group())
+                parsed = json.loads(brace_match.group())
             except json.JSONDecodeError:
                 pass
+            else:
+                self.metrics.record_parse(succeeded=True)
+                return parsed
 
+        self.metrics.record_parse(succeeded=False)
         logger.warning("JSON 파싱 실패: %s...", response[:100])
         return None
 

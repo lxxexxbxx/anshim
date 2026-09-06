@@ -1,0 +1,123 @@
+version: '1.0'
+description: AnShim 벤치마크 정답지. scripts/generate_labels.py 가 생성한다. 직접 수정하지 말 것.
+summary:
+  positive_files: 8
+  negative_files: 8
+  expected_findings: 15
+files:
+- path: positive/debug_mode.py
+  label: positive
+  expected:
+  - line: 20
+    isms_p: 2.9.1
+    cwe: CWE-489
+    severity: medium
+- path: positive/hardcoded_secret.py
+  label: positive
+  expected:
+  - line: 15
+    isms_p: 2.7.2
+    cwe: CWE-798
+    severity: critical
+  - line: 17
+    isms_p: 2.7.2
+    cwe: CWE-798
+    severity: critical
+- path: positive/md5_password.py
+  label: positive
+  expected:
+  - line: 13
+    isms_p: 2.7.1
+    cwe: CWE-327
+    severity: high
+  - line: 19
+    isms_p: 2.7.1
+    cwe: CWE-327
+    severity: high
+- path: positive/path_traversal.py
+  label: positive
+  expected:
+  - line: 15
+    isms_p: 2.6.1
+    cwe: CWE-22
+    severity: high
+  - line: 23
+    isms_p: 2.10.1
+    cwe: CWE-78
+    severity: critical
+- path: positive/plaintext_pii.py
+  label: positive
+  expected:
+  - line: 17
+    isms_p: 3.2.1
+    cwe: CWE-311
+    severity: critical
+  - line: 22
+    isms_p: 3.3.1
+    cwe: CWE-532
+    severity: high
+- path: positive/sqli_concat.py
+  label: positive
+  expected:
+  - line: 13
+    isms_p: 2.10.1
+    cwe: CWE-89
+    severity: high
+  - line: 22
+    isms_p: 2.10.1
+    cwe: CWE-89
+    severity: high
+- path: positive/sqli_fstring.py
+  label: positive
+  expected:
+  - line: 13
+    isms_p: 2.10.1
+    cwe: CWE-89
+    severity: high
+  - line: 21
+    isms_p: 2.10.1
+    cwe: CWE-89
+    severity: high
+- path: positive/xss_render_template_string.py
+  label: positive
+  expected:
+  - line: 17
+    isms_p: 2.10.2
+    cwe: CWE-79
+    severity: high
+  - line: 25
+    isms_p: 2.10.2
+    cwe: CWE-79
+    severity: high
+- path: negative/bcrypt_password.py
+  label: negative
+  expected: []
+  note: 탐지되지 않아야 한다.
+- path: negative/encrypted_pii.py
+  label: negative
+  expected: []
+  note: 탐지되지 않아야 한다. 개인정보 관련 룰이 컬럼명만 보고 오탐할 수 있다.
+- path: negative/md5_checksum.py
+  label: negative
+  expected: []
+  note: Bandit B303(hashlib_insecure_functions)이 용도와 무관하게 탐지한다. LLM이 "비밀번호 해싱이 아니므로 취약점이 아니다"를 판별해야 한다.
+- path: negative/secret_from_env.py
+  label: negative
+  expected: []
+  note: 기본값 문자열이 하드코딩 시크릿으로 오탐될 수 있다.
+- path: negative/sqli_orm.py
+  label: negative
+  expected: []
+  note: 탐지되지 않아야 한다. 여기서 탐지가 나오면 규칙셋이 과하다는 신호다.
+- path: negative/sqli_parameterized.py
+  label: negative
+  expected: []
+  note: '"포맷 문자열 + execute" 패턴이라 규칙이 SQL 인젝션으로 오탐하기 쉽다. LLM이 "값은 파라미터화되어 있고 테이블명은 화이트리스트다"를 판별해야 한다.'
+- path: negative/test_fixture_secret.py
+  label: negative
+  expected: []
+  note: 하드코딩 시크릿 룰이 문자열 패턴만 보고 탐지한다. LLM이 "테스트 픽스처이므로 실제 위험이 아니다"를 판별해야 한다.
+- path: negative/xss_escaped.py
+  label: negative
+  expected: []
+  note: 규칙은 escape 호출을 추적하지 못해 오탐할 수 있다. LLM이 "출력 전 escape가 적용되었다"를 판별해야 한다.

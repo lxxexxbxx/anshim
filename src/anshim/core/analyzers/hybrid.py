@@ -163,6 +163,20 @@ class HybridAnalyzer:
             self._llm_available = self._ollama_client.is_running()
         return self._llm_available
 
+    @property
+    def llm_metrics(self) -> dict[str, float | int] | None:
+        """직전 분석의 LLM 계측값.
+
+        LLM 분석을 수행하지 않았으면 None을 반환한다. 호출 횟수, 평균 응답 시간,
+        JSON 파싱 실패율을 담으며 벤치마크가 운영 지표로 사용한다.
+
+        Returns:
+            계측값 딕셔너리 또는 None.
+        """
+        if self._llm_analyzer is None:
+            return None
+        return self._llm_analyzer.metrics.as_dict()
+
     def analyze(
         self,
         target: Path,
