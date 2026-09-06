@@ -4,9 +4,6 @@
 SQLAlchemy ORM 모델의 CRUD 동작을 테스트합니다.
 """
 
-from datetime import datetime
-
-import pytest
 from sqlalchemy.orm import Session
 
 from anshim.core.db.models import (

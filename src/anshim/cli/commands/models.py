@@ -82,8 +82,7 @@ def list_models(
     for model in SUPPORTED_MODELS:
         # 설치 여부 확인
         is_installed = any(
-            m == model.name or m.startswith(model.name.split(":")[0])
-            for m in installed_models
+            m == model.name or m.startswith(model.name.split(":")[0]) for m in installed_models
         )
 
         # all_models가 False이면 설치된 것만 표시
@@ -288,10 +287,14 @@ def model_info(
     console.print(f"[bold]{model.display_name}[/bold]")
     console.print()
     console.print(f"  모델명: [cyan]{model.name}[/cyan]")
-    console.print(f"  한국어 지원: {'[green]예[/green]' if model.korean_support else '[dim]아니오[/dim]'}")
+    console.print(
+        f"  한국어 지원: {'[green]예[/green]' if model.korean_support else '[dim]아니오[/dim]'}"
+    )
     console.print(f"  최소 VRAM: [yellow]{model.min_vram_gb}GB[/yellow]")
     console.print(f"  컨텍스트 길이: {model.context_length:,} 토큰")
-    console.print(f"  기본 추천: {'[green]예[/green]' if model.recommended else '[dim]아니오[/dim]'}")
+    console.print(
+        f"  기본 추천: {'[green]예[/green]' if model.recommended else '[dim]아니오[/dim]'}"
+    )
     console.print()
     console.print(f"  설명: {model.description}")
     console.print()

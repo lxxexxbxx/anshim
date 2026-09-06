@@ -3,7 +3,6 @@
 Semgrep, Bandit, RuleBasedAnalyzer 통합 테스트.
 """
 
-import os
 from pathlib import Path
 
 import pytest
@@ -15,7 +14,6 @@ from anshim.core.analyzers import (
     ScanSummary,
     SemgrepAnalyzer,
 )
-
 
 # 테스트 fixtures 경로
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -83,16 +81,28 @@ class TestScanSummaryModel:
         """ScanSummary 생성 테스트."""
         results = [
             AnalysisResult(
-                rule_id="r1", title="T1", severity="critical",
-                file_path="a.py", line_start=1, source="s"
+                rule_id="r1",
+                title="T1",
+                severity="critical",
+                file_path="a.py",
+                line_start=1,
+                source="s",
             ),
             AnalysisResult(
-                rule_id="r2", title="T2", severity="high",
-                file_path="b.py", line_start=2, source="s"
+                rule_id="r2",
+                title="T2",
+                severity="high",
+                file_path="b.py",
+                line_start=2,
+                source="s",
             ),
             AnalysisResult(
-                rule_id="r3", title="T3", severity="medium",
-                file_path="c.py", line_start=3, source="s"
+                rule_id="r3",
+                title="T3",
+                severity="medium",
+                file_path="c.py",
+                line_start=3,
+                source="s",
             ),
         ]
 
@@ -114,16 +124,23 @@ class TestScanSummaryModel:
         """심각도별 분류 테스트."""
         results = [
             AnalysisResult(
-                rule_id="r1", title="T1", severity="high",
-                file_path="a.py", line_start=1, source="s"
+                rule_id="r1",
+                title="T1",
+                severity="high",
+                file_path="a.py",
+                line_start=1,
+                source="s",
             ),
             AnalysisResult(
-                rule_id="r2", title="T2", severity="high",
-                file_path="b.py", line_start=2, source="s"
+                rule_id="r2",
+                title="T2",
+                severity="high",
+                file_path="b.py",
+                line_start=2,
+                source="s",
             ),
             AnalysisResult(
-                rule_id="r3", title="T3", severity="low",
-                file_path="c.py", line_start=3, source="s"
+                rule_id="r3", title="T3", severity="low", file_path="c.py", line_start=3, source="s"
             ),
         ]
 
@@ -141,16 +158,28 @@ class TestScanSummaryModel:
         """파일별 분류 테스트."""
         results = [
             AnalysisResult(
-                rule_id="r1", title="T1", severity="high",
-                file_path="file1.py", line_start=1, source="s"
+                rule_id="r1",
+                title="T1",
+                severity="high",
+                file_path="file1.py",
+                line_start=1,
+                source="s",
             ),
             AnalysisResult(
-                rule_id="r2", title="T2", severity="high",
-                file_path="file1.py", line_start=10, source="s"
+                rule_id="r2",
+                title="T2",
+                severity="high",
+                file_path="file1.py",
+                line_start=10,
+                source="s",
             ),
             AnalysisResult(
-                rule_id="r3", title="T3", severity="low",
-                file_path="file2.py", line_start=5, source="s"
+                rule_id="r3",
+                title="T3",
+                severity="low",
+                file_path="file2.py",
+                line_start=5,
+                source="s",
             ),
         ]
 
@@ -180,10 +209,7 @@ class TestSemgrepAnalyzer:
         results = analyzer.analyze(Path("/nonexistent/path"))
         assert results == []
 
-    @pytest.mark.skipif(
-        not SemgrepAnalyzer().is_available(),
-        reason="Semgrep이 설치되어 있지 않음"
-    )
+    @pytest.mark.skipif(not SemgrepAnalyzer().is_available(), reason="Semgrep이 설치되어 있지 않음")
     def test_analyze_vulnerable_python(self) -> None:
         """취약한 Python 파일 분석 테스트."""
         if not VULNERABLE_PYTHON.exists():
@@ -215,10 +241,7 @@ class TestBanditAnalyzer:
         results = analyzer.analyze(Path("/nonexistent/path"))
         assert results == []
 
-    @pytest.mark.skipif(
-        not BanditAnalyzer().is_available(),
-        reason="Bandit이 설치되어 있지 않음"
-    )
+    @pytest.mark.skipif(not BanditAnalyzer().is_available(), reason="Bandit이 설치되어 있지 않음")
     def test_analyze_vulnerable_python(self) -> None:
         """취약한 Python 파일 분석 테스트."""
         if not VULNERABLE_PYTHON.exists():
@@ -271,7 +294,7 @@ class TestRuleBasedAnalyzer:
 
     @pytest.mark.skipif(
         not (SemgrepAnalyzer().is_available() or BanditAnalyzer().is_available()),
-        reason="Semgrep 또는 Bandit이 설치되어 있지 않음"
+        reason="Semgrep 또는 Bandit이 설치되어 있지 않음",
     )
     def test_analyze_vulnerable_python(self) -> None:
         """취약한 Python 파일 통합 분석 테스트."""

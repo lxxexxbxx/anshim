@@ -2,7 +2,6 @@
 """컴플라이언스 매퍼 테스트."""
 
 import pytest
-from pathlib import Path
 
 from anshim.core.analyzers.models import AnalysisResult
 from anshim.core.compliance.loader import ComplianceRule, RuleLoader

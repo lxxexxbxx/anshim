@@ -153,11 +153,7 @@ class ScanRepository:
         with get_db(self.db_path) as session:
             if len(scan_id) < 36:
                 # 짧은 ID로 검색
-                scan = (
-                    session.query(Scan)
-                    .filter(Scan.id.startswith(scan_id))
-                    .first()
-                )
+                scan = session.query(Scan).filter(Scan.id.startswith(scan_id)).first()
             else:
                 scan = session.query(Scan).filter(Scan.id == scan_id).first()
 
@@ -300,6 +296,7 @@ class VulnerabilityRepository:
         attack_scenario_str = None
         if result.attack_scenario:
             import json
+
             attack_scenario_str = json.dumps(result.attack_scenario, ensure_ascii=False)
 
         # 수정 제안을 문자열로 변환
@@ -308,6 +305,7 @@ class VulnerabilityRepository:
         if result.remediation:
             if isinstance(result.remediation, dict):
                 import json
+
                 remediation_str = json.dumps(result.remediation, ensure_ascii=False)
                 remediation_code = result.remediation.get("fixed_code", "")
             else:
@@ -453,11 +451,7 @@ class VulnerabilityRepository:
             Vulnerability 객체 또는 None.
         """
         with get_db(self.db_path) as session:
-            vuln = (
-                session.query(Vulnerability)
-                .filter(Vulnerability.id == vuln_id)
-                .first()
-            )
+            vuln = session.query(Vulnerability).filter(Vulnerability.id == vuln_id).first()
             if vuln:
                 session.expunge(vuln)
             return vuln

@@ -242,9 +242,7 @@ class HybridAnalyzer:
         # 4. 통계 계산
         compliance_summary = {}
         if self._compliance_mapper:
-            compliance_summary = self._compliance_mapper.get_compliance_summary(
-                mapped_results
-            )
+            compliance_summary = self._compliance_mapper.get_compliance_summary(mapped_results)
 
         # 5. 최종 결과 생성
         duration = time.time() - start_time

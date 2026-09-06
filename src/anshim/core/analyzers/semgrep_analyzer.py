@@ -95,7 +95,8 @@ class SemgrepAnalyzer:
                 "--json",
                 *configs,
                 "--no-git-ignore",  # .gitignore 무시 (테스트 코드도 분석)
-                "--metrics", "off",  # 메트릭 전송 비활성화 (프라이버시)
+                "--metrics",
+                "off",  # 메트릭 전송 비활성화 (프라이버시)
                 str(target),
             ]
 
@@ -204,7 +205,10 @@ class SemgrepAnalyzer:
                     line_end=finding.get("end", {}).get("line"),
                     code_snippet=code_snippet,
                     source="semgrep",
-                    confidence=finding.get("extra", {}).get("metadata", {}).get("confidence", "medium").lower(),
+                    confidence=finding.get("extra", {})
+                    .get("metadata", {})
+                    .get("confidence", "medium")
+                    .lower(),
                 )
                 results.append(result)
 

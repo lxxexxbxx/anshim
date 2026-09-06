@@ -218,9 +218,7 @@ class LLMAnalyzer:
         with ThreadPoolExecutor(max_workers=max_concurrent) as executor:
             # 작업 제출
             future_to_result = {
-                executor.submit(
-                    self.analyze_vulnerability, result, timeout
-                ): result
+                executor.submit(self.analyze_vulnerability, result, timeout): result
                 for result in results
             }
 
@@ -252,10 +250,7 @@ class LLMAnalyzer:
         Returns:
             is_false_positive=True인 결과가 제거된 목록.
         """
-        return [
-            r for r in results
-            if not getattr(r, "is_false_positive", False)
-        ]
+        return [r for r in results if not getattr(r, "is_false_positive", False)]
 
     def _render_template(
         self,

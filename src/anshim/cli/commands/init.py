@@ -22,9 +22,7 @@ console = Console()
 
 
 def init_command(
-    force: bool = typer.Option(
-        False, "--force", "-f", help="기존 설정을 덮어씁니다"
-    ),
+    force: bool = typer.Option(False, "--force", "-f", help="기존 설정을 덮어씁니다"),
 ) -> None:
     """
     AnShim 초기 설정을 수행합니다.
@@ -94,7 +92,10 @@ def init_command(
         try:
             installed = ollama.list_models()
             if installed:
-                console.print(f"   설치된 모델: {', '.join(installed[:3])}" + (" 외" if len(installed) > 3 else ""))
+                console.print(
+                    f"   설치된 모델: {', '.join(installed[:3])}"
+                    + (" 외" if len(installed) > 3 else "")
+                )
             else:
                 console.print("   [yellow]설치된 모델 없음 — 아래 명령어로 설치하세요[/yellow]")
                 console.print(f"   [cyan]anshim models pull {rec_model}[/cyan]")

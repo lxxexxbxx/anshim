@@ -199,9 +199,7 @@ class RuleLoader:
         self._rules = []
 
         # 재귀적으로 YAML 파일 탐색
-        yaml_files = list(self.rules_dir.rglob("*.yaml")) + list(
-            self.rules_dir.rglob("*.yml")
-        )
+        yaml_files = list(self.rules_dir.rglob("*.yaml")) + list(self.rules_dir.rglob("*.yml"))
 
         logger.info("룰셋 파일 %d개 발견: %s", len(yaml_files), self.rules_dir)
 
@@ -258,9 +256,7 @@ class RuleLoader:
         if not self._loaded:
             self.load_rules()
 
-        return [
-            rule for rule in self._rules if rule.is_applicable(compliance_types)
-        ]
+        return [rule for rule in self._rules if rule.is_applicable(compliance_types)]
 
     def get_rule_by_id(self, rule_id: str) -> ComplianceRule | None:
         """룰 ID로 룰 조회.

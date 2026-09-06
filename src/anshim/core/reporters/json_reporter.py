@@ -14,7 +14,9 @@ logger = logging.getLogger(__name__)
 
 # SARIF 스펙 버전
 _SARIF_VERSION = "2.1.0"
-_SARIF_SCHEMA = "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
+_SARIF_SCHEMA = (
+    "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json"
+)
 
 
 class JSONReporter(BaseReporter):
@@ -175,8 +177,7 @@ class JSONReporter(BaseReporter):
                         "source": r.source,
                         "confidence": r.confidence,
                         "compliance_mappings": [
-                            f"{m.compliance_type}:{m.compliance_id}"
-                            for m in r.compliance_mappings
+                            f"{m.compliance_type}:{m.compliance_id}" for m in r.compliance_mappings
                         ],
                     },
                 }

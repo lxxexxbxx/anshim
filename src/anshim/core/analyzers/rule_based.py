@@ -111,9 +111,7 @@ class RuleBasedAnalyzer:
 
         # 병렬 실행
         with ThreadPoolExecutor(max_workers=2) as executor:
-            futures = {
-                executor.submit(task): name for name, task in tasks
-            }
+            futures = {executor.submit(task): name for name, task in tasks}
 
             for future in as_completed(futures):
                 analyzer_name = futures[future]

@@ -1,7 +1,6 @@
 """리포터 테스트."""
 
 import json
-import tempfile
 from pathlib import Path
 
 import pytest

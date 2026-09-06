@@ -1,7 +1,6 @@
 # anshim/core/analyzers/models.py
 """분석 결과를 위한 공통 모델 정의."""
 
-
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -13,7 +12,9 @@ class AnalysisResult(BaseModel):
 
     model_config = ConfigDict(extra="allow")
 
-    rule_id: str = Field(..., description="규칙 ID (예: python.cryptography.security.insecure-hash-md5)")
+    rule_id: str = Field(
+        ..., description="규칙 ID (예: python.cryptography.security.insecure-hash-md5)"
+    )
     title: str = Field(..., description="취약점 제목")
     description: str = Field(default="", description="취약점 상세 설명")
     severity: str = Field(..., description="심각도: critical, high, medium, low")

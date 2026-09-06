@@ -73,7 +73,8 @@ class BanditAnalyzer:
             cmd = [
                 self._bandit_path or "bandit",
                 "-r",  # 재귀적 스캔
-                "-f", "json",  # JSON 출력
+                "-f",
+                "json",  # JSON 출력
                 "-q",  # 조용한 모드 (배너 없음)
                 str(target),
             ]

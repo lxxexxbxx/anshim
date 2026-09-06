@@ -4,7 +4,6 @@ CLI 테스트.
 Typer CLI 명령어의 기본 동작을 테스트합니다.
 """
 
-import pytest
 from typer.testing import CliRunner
 
 from anshim.cli.main import app

@@ -5,8 +5,7 @@ Mock OllamaClient를 사용하여 LLM 분석기 동작을 테스트합니다.
 """
 
 import json
-from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -20,7 +19,6 @@ from anshim.core.models.registry import (
     get_recommended_model,
     recommend_model_for_vram,
 )
-
 
 # === Fixtures ===
 
@@ -53,12 +51,14 @@ def mock_ollama_client():
 @pytest.fixture
 def mock_llm_response():
     """Mock LLM 응답."""
-    return json.dumps({
-        "is_false_positive": False,
-        "severity_adjusted": "high",
-        "analysis": "MD5는 충돌 공격에 취약하여 보안 목적으로 사용해서는 안 됩니다.",
-        "isms_relevance": "2.7.1 암호화 적용"
-    })
+    return json.dumps(
+        {
+            "is_false_positive": False,
+            "severity_adjusted": "high",
+            "analysis": "MD5는 충돌 공격에 취약하여 보안 목적으로 사용해서는 안 됩니다.",
+            "isms_relevance": "2.7.1 암호화 적용",
+        }
+    )
 
 
 # === OllamaClient 테스트 ===
@@ -163,9 +163,7 @@ class TestLLMAnalyzer:
         analyzer = LLMAnalyzer(model="exaone3.5:7.8b", ollama_client=client)
         assert analyzer.is_available() is False
 
-    def test_analyze_vulnerability_returns_original_when_unavailable(
-        self, sample_result
-    ):
+    def test_analyze_vulnerability_returns_original_when_unavailable(self, sample_result):
         """Ollama 미실행 시 원본 결과 반환."""
         client = OllamaClient(base_url="http://localhost:99999")
         analyzer = LLMAnalyzer(model="exaone3.5:7.8b", ollama_client=client)
@@ -230,8 +228,7 @@ class TestLLMAnalyzer:
     def test_parse_json_response_valid(self):
         """유효한 JSON 응답 파싱."""
         analyzer = LLMAnalyzer(
-            model="test",
-            ollama_client=OllamaClient(base_url="http://localhost:99999")
+            model="test", ollama_client=OllamaClient(base_url="http://localhost:99999")
         )
 
         response = '{"key": "value", "number": 42}'
@@ -241,23 +238,21 @@ class TestLLMAnalyzer:
     def test_parse_json_response_with_markdown(self):
         """마크다운 코드 블록 내 JSON 파싱."""
         analyzer = LLMAnalyzer(
-            model="test",
-            ollama_client=OllamaClient(base_url="http://localhost:99999")
+            model="test", ollama_client=OllamaClient(base_url="http://localhost:99999")
         )
 
-        response = '''Here is the analysis:
+        response = """Here is the analysis:
 ```json
 {"is_false_positive": false, "severity": "high"}
 ```
-'''
+"""
         result = analyzer._parse_json_response(response)
         assert result == {"is_false_positive": False, "severity": "high"}
 
     def test_parse_json_response_invalid(self):
         """유효하지 않은 응답."""
         analyzer = LLMAnalyzer(
-            model="test",
-            ollama_client=OllamaClient(base_url="http://localhost:99999")
+            model="test", ollama_client=OllamaClient(base_url="http://localhost:99999")
         )
 
         result = analyzer._parse_json_response("This is not JSON")
@@ -266,8 +261,7 @@ class TestLLMAnalyzer:
     def test_parse_json_response_empty(self):
         """빈 응답."""
         analyzer = LLMAnalyzer(
-            model="test",
-            ollama_client=OllamaClient(base_url="http://localhost:99999")
+            model="test", ollama_client=OllamaClient(base_url="http://localhost:99999")
         )
 
         result = analyzer._parse_json_response("")
@@ -298,8 +292,7 @@ class TestPromptTemplates:
     def test_render_template(self, sample_result):
         """템플릿 렌더링 테스트."""
         analyzer = LLMAnalyzer(
-            model="test",
-            ollama_client=OllamaClient(base_url="http://localhost:99999")
+            model="test", ollama_client=OllamaClient(base_url="http://localhost:99999")
         )
 
         prompt = analyzer._render_template("vulnerability_analysis.jinja2", sample_result)

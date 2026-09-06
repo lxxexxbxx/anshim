@@ -111,8 +111,11 @@ ignore = [
 known-first-party = ["anshim"]
 
 [tool.ruff.lint.per-file-ignores]
-# 테스트 파일에서는 assert 사용이 표준 패턴이므로 S101(flake8-bandit)을 제외
-"tests/*" = ["S101"]
+# 테스트 파일에서 제외하는 flake8-bandit 규칙:
+#   S101 assert 사용은 pytest의 표준 패턴이다.
+#   S108 "/tmp/..." 는 DB 레코드와 API 스키마에 넣는 더미 경로 문자열이며,
+#        실제 파일 입출력에 사용하지 않는다. 실제 임시 파일은 tmp_path 픽스처를 쓴다.
+"tests/*" = ["S101", "S108"]
 
 [tool.mypy]
 python_version = "3.10"

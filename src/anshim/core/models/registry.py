@@ -5,7 +5,6 @@
 하드웨어 기반 모델 추천은 Sprint 6에서 구현 예정입니다.
 """
 
-
 from pydantic import BaseModel, Field
 
 

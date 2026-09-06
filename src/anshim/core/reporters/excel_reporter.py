@@ -26,11 +26,13 @@ HEADER_FONT_COLOR = "FFFFFFFF"
 
 def _make_fill(argb: str):
     from openpyxl.styles import PatternFill
+
     return PatternFill(fill_type="solid", fgColor=argb)
 
 
 def _make_header_style():
     from openpyxl.styles import Alignment, Font, PatternFill
+
     return (
         Font(bold=True, color=HEADER_FONT_COLOR),
         PatternFill(fill_type="solid", fgColor=HEADER_FILL),
@@ -105,6 +107,7 @@ class ExcelReporter(BaseReporter):
 
     def _write_summary_sheet(self, wb, data: ReportData) -> None:
         from openpyxl.styles import Font
+
         ws = wb.create_sheet("요약")
         hfont, hfill, halign = _make_header_style()
 
@@ -165,10 +168,21 @@ class ExcelReporter(BaseReporter):
 
     def _write_vulns_sheet(self, wb, data: ReportData) -> None:
         from openpyxl.styles import Alignment
+
         ws = wb.create_sheet("취약점 목록")
         hfont, hfill, halign = _make_header_style()
 
-        headers = ["번호", "심각도", "파일 경로", "라인", "규칙 ID", "제목", "설명", "출처", "수정 제안"]
+        headers = [
+            "번호",
+            "심각도",
+            "파일 경로",
+            "라인",
+            "규칙 ID",
+            "제목",
+            "설명",
+            "출처",
+            "수정 제안",
+        ]
         for col, header in enumerate(headers, start=1):
             cell = ws.cell(row=1, column=col, value=header)
             cell.font = hfont
@@ -216,10 +230,20 @@ class ExcelReporter(BaseReporter):
 
     def _write_compliance_sheet(self, wb, data: ReportData) -> None:
         from openpyxl.styles import Alignment
+
         ws = wb.create_sheet("ISMS-P 매핑")
         hfont, hfill, halign = _make_header_style()
 
-        headers = ["컴플라이언스", "항목 ID", "항목 제목", "카테고리", "심각도", "파일 경로", "라인", "취약점 제목"]
+        headers = [
+            "컴플라이언스",
+            "항목 ID",
+            "항목 제목",
+            "카테고리",
+            "심각도",
+            "파일 경로",
+            "라인",
+            "취약점 제목",
+        ]
         for col, header in enumerate(headers, start=1):
             cell = ws.cell(row=1, column=col, value=header)
             cell.font = hfont

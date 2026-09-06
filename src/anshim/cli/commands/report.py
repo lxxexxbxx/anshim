@@ -120,9 +120,13 @@ def show_report(
 
     console.print(f"\n[bold]스캔 결과: [cyan]{scan.id[:8]}[/cyan][/bold]")
     console.print(f"  대상: {scan.target_path}")
-    console.print(f"  일시: {scan.started_at.strftime('%Y-%m-%d %H:%M:%S') if scan.started_at else '-'}")
+    console.print(
+        f"  일시: {scan.started_at.strftime('%Y-%m-%d %H:%M:%S') if scan.started_at else '-'}"
+    )
     console.print(f"  상태: {scan.status}")
-    console.print(f"  취약점: {scan.total_vulnerabilities or 0}개 (C:{scan.critical_count or 0} H:{scan.high_count or 0} M:{scan.medium_count or 0} L:{scan.low_count or 0})")
+    console.print(
+        f"  취약점: {scan.total_vulnerabilities or 0}개 (C:{scan.critical_count or 0} H:{scan.high_count or 0} M:{scan.medium_count or 0} L:{scan.low_count or 0})"
+    )
     console.print()
 
     # DB에서 취약점 조회하여 HybridScanResult 재구성
@@ -135,7 +139,9 @@ def show_report(
         mappings_db = vuln_repo.get_compliance_mappings(vuln.id)
         mappings = [
             ComplianceMappingInfo(
-                compliance_type=m.compliance_type.value if hasattr(m.compliance_type, "value") else str(m.compliance_type),
+                compliance_type=m.compliance_type.value
+                if hasattr(m.compliance_type, "value")
+                else str(m.compliance_type),
                 compliance_id=m.compliance_id,
                 compliance_title=m.compliance_title or "",
                 compliance_category=m.compliance_category or "",
@@ -145,6 +151,7 @@ def show_report(
         ]
 
         import json as _json
+
         attack = None
         if vuln.attack_scenario:
             try:
@@ -159,7 +166,9 @@ def show_report(
             except Exception:
                 remediation = {"fix_summary": vuln.remediation}
 
-        severity_val = vuln.severity.value if hasattr(vuln.severity, "value") else str(vuln.severity)
+        severity_val = (
+            vuln.severity.value if hasattr(vuln.severity, "value") else str(vuln.severity)
+        )
 
         mr = MappedResult(
             rule_id=vuln.rule_id,
@@ -274,7 +283,9 @@ def export_report(
         mappings_db = vuln_repo.get_compliance_mappings(vuln.id)
         mappings = [
             ComplianceMappingInfo(
-                compliance_type=m.compliance_type.value if hasattr(m.compliance_type, "value") else str(m.compliance_type),
+                compliance_type=m.compliance_type.value
+                if hasattr(m.compliance_type, "value")
+                else str(m.compliance_type),
                 compliance_id=m.compliance_id,
                 compliance_title=m.compliance_title or "",
                 compliance_category=m.compliance_category or "",
@@ -284,6 +295,7 @@ def export_report(
         ]
 
         import json as _json
+
         attack = None
         if vuln.attack_scenario:
             try:
@@ -298,7 +310,9 @@ def export_report(
             except Exception:
                 remediation = {"fix_summary": vuln.remediation}
 
-        severity_val = vuln.severity.value if hasattr(vuln.severity, "value") else str(vuln.severity)
+        severity_val = (
+            vuln.severity.value if hasattr(vuln.severity, "value") else str(vuln.severity)
+        )
 
         mr = MappedResult(
             rule_id=vuln.rule_id,

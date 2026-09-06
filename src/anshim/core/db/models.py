@@ -80,7 +80,9 @@ class Scan(Base):
     error_message = Column(Text, nullable=True)
 
     # 관계
-    vulnerabilities = relationship("Vulnerability", back_populates="scan", cascade="all, delete-orphan")
+    vulnerabilities = relationship(
+        "Vulnerability", back_populates="scan", cascade="all, delete-orphan"
+    )
 
     def __repr__(self) -> str:
         return f"<Scan(id={self.id}, target={self.target_path}, status={self.status})>"

@@ -27,9 +27,7 @@ class HTMLReporter(BaseReporter):
             autoescape=select_autoescape(["html", "j2"]),
         )
         # sort 필터에서 key 람다 허용
-        self._env.globals["severity_order"] = {
-            "critical": 0, "high": 1, "medium": 2, "low": 3
-        }
+        self._env.globals["severity_order"] = {"critical": 0, "high": 1, "medium": 2, "low": 3}
 
     def generate(self, scan_result: HybridScanResult, output_path: Path) -> Path:
         """HTML 리포트 파일 생성.

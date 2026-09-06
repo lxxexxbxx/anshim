@@ -177,9 +177,7 @@ class OllamaClient:
             raise OllamaNotRunningError() from e
         except httpx.TimeoutException as e:
             logger.error("Ollama 생성 타임아웃 (timeout=%ds): %s", request_timeout, e)
-            raise OllamaNotRunningError(
-                f"Ollama 생성 타임아웃 ({request_timeout}초 초과)"
-            ) from e
+            raise OllamaNotRunningError(f"Ollama 생성 타임아웃 ({request_timeout}초 초과)") from e
         except httpx.HTTPStatusError as e:
             logger.error("Ollama HTTP 오류: %s", e)
             raise

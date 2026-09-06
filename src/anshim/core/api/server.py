@@ -47,7 +47,9 @@ def _scan_to_response(scan) -> ScanResponse:
         started_at=scan.started_at,
         completed_at=scan.completed_at,
         status=scan.status,
-        analysis_type=scan.analysis_type.value if hasattr(scan.analysis_type, "value") else scan.analysis_type,
+        analysis_type=scan.analysis_type.value
+        if hasattr(scan.analysis_type, "value")
+        else scan.analysis_type,
         model_used=scan.model_used,
         compliance_types=scan.compliance_types or [],
         total_files=scan.total_files or 0,
@@ -66,7 +68,9 @@ def _vuln_to_response(vuln, mappings=None) -> VulnerabilityResponse:
             mapping_responses.append(
                 ComplianceMappingResponse(
                     id=m.id,
-                    compliance_type=m.compliance_type.value if hasattr(m.compliance_type, "value") else m.compliance_type,
+                    compliance_type=m.compliance_type.value
+                    if hasattr(m.compliance_type, "value")
+                    else m.compliance_type,
                     compliance_id=m.compliance_id,
                     compliance_title=m.compliance_title,
                     compliance_category=m.compliance_category,
@@ -85,7 +89,9 @@ def _vuln_to_response(vuln, mappings=None) -> VulnerabilityResponse:
         line_start=vuln.line_start,
         line_end=vuln.line_end,
         code_snippet=vuln.code_snippet,
-        analysis_type=vuln.analysis_type.value if hasattr(vuln.analysis_type, "value") else vuln.analysis_type,
+        analysis_type=vuln.analysis_type.value
+        if hasattr(vuln.analysis_type, "value")
+        else vuln.analysis_type,
         is_false_positive=vuln.is_false_positive or False,
         confidence=vuln.confidence or 100,
         attack_scenario=vuln.attack_scenario,
@@ -218,7 +224,9 @@ async def create_scan(
     """새 스캔 시작 (비동기 백그라운드 실행)."""
     target = Path(request.target_path)
     if not target.exists():
-        raise HTTPException(status_code=400, detail=f"경로가 존재하지 않습니다: {request.target_path}")
+        raise HTTPException(
+            status_code=400, detail=f"경로가 존재하지 않습니다: {request.target_path}"
+        )
 
     from anshim.core.db.repository import ScanRepository as _SR
 
@@ -247,7 +255,9 @@ async def create_scan(
             logger.error("백그라운드 스캔 실패 (%s): %s", scan_id[:8], exc)
             repo.fail_scan(scan_id, str(exc))
 
-    background_tasks.add_task(_run_scan, scan.id, request.target_path, request.compliance, request.model)
+    background_tasks.add_task(
+        _run_scan, scan.id, request.target_path, request.compliance, request.model
+    )
 
     return ScanCreateResponse(
         scan_id=scan.id,

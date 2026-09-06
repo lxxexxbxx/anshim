@@ -171,9 +171,15 @@ def scan_command(
 
     if verbose:
         console.print("[dim]분석기 상태:[/dim]")
-        console.print(f"  Semgrep: {'[green]사용 가능[/green]' if status.get('semgrep') else '[red]미설치[/red]'}")
-        console.print(f"  Bandit: {'[green]사용 가능[/green]' if status.get('bandit') else '[red]미설치[/red]'}")
-        console.print(f"  Ollama: {'[green]실행 중[/green]' if status.get('ollama') else '[yellow]미실행[/yellow]'}")
+        console.print(
+            f"  Semgrep: {'[green]사용 가능[/green]' if status.get('semgrep') else '[red]미설치[/red]'}"
+        )
+        console.print(
+            f"  Bandit: {'[green]사용 가능[/green]' if status.get('bandit') else '[red]미설치[/red]'}"
+        )
+        console.print(
+            f"  Ollama: {'[green]실행 중[/green]' if status.get('ollama') else '[yellow]미실행[/yellow]'}"
+        )
         console.print()
 
     # 하이브리드 분석 실행
@@ -194,7 +200,9 @@ def scan_command(
     if not no_db:
         try:
             scan_id = save_hybrid_result(result)
-            console.print(f"\n[dim]스캔 ID: [cyan]{scan_id[:8]}[/cyan] — anshim report show {scan_id[:8]}[/dim]")
+            console.print(
+                f"\n[dim]스캔 ID: [cyan]{scan_id[:8]}[/cyan] — anshim report show {scan_id[:8]}[/dim]"
+            )
         except Exception as e:
             logger.warning("DB 저장 실패: %s", e)
             console.print(f"[yellow]DB 저장 실패: {e}[/yellow]")
@@ -293,26 +301,17 @@ def _print_results(result: HybridScanResult, verbose: bool) -> None:
     stats_table.add_column("Count", justify="right")
 
     stats_table.add_row(
-        f"{SEVERITY_MARKER['critical']} Critical",
-        f"[red bold]{result.critical_count}[/red bold]"
+        f"{SEVERITY_MARKER['critical']} Critical", f"[red bold]{result.critical_count}[/red bold]"
     )
     stats_table.add_row(
-        f"{SEVERITY_MARKER['high']} High",
-        f"[orange1]{result.high_count}[/orange1]"
+        f"{SEVERITY_MARKER['high']} High", f"[orange1]{result.high_count}[/orange1]"
     )
     stats_table.add_row(
-        f"{SEVERITY_MARKER['medium']} Medium",
-        f"[yellow]{result.medium_count}[/yellow]"
+        f"{SEVERITY_MARKER['medium']} Medium", f"[yellow]{result.medium_count}[/yellow]"
     )
-    stats_table.add_row(
-        f"{SEVERITY_MARKER['low']} Low",
-        f"[blue]{result.low_count}[/blue]"
-    )
+    stats_table.add_row(f"{SEVERITY_MARKER['low']} Low", f"[blue]{result.low_count}[/blue]")
     stats_table.add_row("", "")
-    stats_table.add_row(
-        "[bold]Total[/bold]",
-        f"[bold]{result.total_issues}[/bold]"
-    )
+    stats_table.add_row("[bold]Total[/bold]", f"[bold]{result.total_issues}[/bold]")
 
     console.print(stats_table)
 
@@ -340,10 +339,7 @@ def _print_results(result: HybridScanResult, verbose: bool) -> None:
 
     # 심각도 순으로 정렬 (critical > high > medium > low)
     severity_order = {"critical": 0, "high": 1, "medium": 2, "low": 3}
-    sorted_results = sorted(
-        result.results,
-        key=lambda r: severity_order.get(r.severity.lower(), 4)
-    )
+    sorted_results = sorted(result.results, key=lambda r: severity_order.get(r.severity.lower(), 4))
 
     # 최대 표시 개수 제한 (verbose 아닌 경우)
     max_display = len(sorted_results) if verbose else min(20, len(sorted_results))

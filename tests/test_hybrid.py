@@ -1,25 +1,27 @@
 # anshim/tests/test_hybrid.py
 """하이브리드 분석기 및 Repository 통합 테스트."""
 
-import pytest
-from pathlib import Path
-from unittest.mock import Mock, patch
+import contextlib
 import tempfile
+from pathlib import Path
+from unittest.mock import patch
 
+import pytest
+
+from anshim.core.analyzers import BanditAnalyzer, SemgrepAnalyzer
 from anshim.core.analyzers.hybrid import (
+    SUPPORTED_EXTENSIONS,
     HybridAnalyzer,
     HybridScanResult,
-    SUPPORTED_EXTENSIONS,
 )
-from anshim.core.analyzers import BanditAnalyzer, SemgrepAnalyzer
-from anshim.core.analyzers.models import AnalysisResult, ScanSummary
-from anshim.core.compliance.mapper import MappedResult, ComplianceMappingInfo
+from anshim.core.analyzers.models import ScanSummary
+from anshim.core.compliance.mapper import ComplianceMappingInfo, MappedResult
+from anshim.core.db.models import AnalysisType, SeverityLevel
 from anshim.core.db.repository import (
     ScanRepository,
     VulnerabilityRepository,
     save_hybrid_result,
 )
-from anshim.core.db.models import AnalysisType, SeverityLevel
 
 
 class TestHybridScanResult:
@@ -299,16 +301,13 @@ class TestScanRepository:
     @pytest.fixture
     def temp_db(self):
         """임시 데이터베이스 파일."""
-        import os
         with tempfile.NamedTemporaryFile(suffix=".db", delete=False) as f:
             temp_path = Path(f.name)
         yield temp_path
-        # 테스트 후 정리
-        if temp_path.exists():
-            try:
-                os.unlink(temp_path)
-            except Exception:
-                pass
+        # 테스트 후 정리. Windows에서는 SQLite 파일 핸들이 남아 삭제가 실패할 수
+        # 있으므로, 정리 실패를 테스트 실패로 만들지 않는다.
+        with contextlib.suppress(OSError):
+            temp_path.unlink(missing_ok=True)
 
     def test_create_scan(self, temp_db):
         """스캔 생성 테스트."""
