@@ -107,11 +107,6 @@ class TestComplianceRule:
 class TestRuleLoader:
     """RuleLoader 테스트."""
 
-    @pytest.fixture
-    def rules_dir(self):
-        """테스트용 rules 디렉토리."""
-        return Path(__file__).parent.parent / "rules"
-
     def test_load_rules(self, rules_dir):
         """룰셋 로드 테스트."""
         loader = RuleLoader(rules_dir)
@@ -164,11 +159,6 @@ class TestRuleLoader:
 
 class TestComplianceMapper:
     """ComplianceMapper 테스트."""
-
-    @pytest.fixture
-    def rules_dir(self):
-        """테스트용 rules 디렉토리."""
-        return Path(__file__).parent.parent / "rules"
 
     @pytest.fixture
     def sample_result(self):

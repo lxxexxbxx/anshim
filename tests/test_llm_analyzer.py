@@ -280,19 +280,19 @@ class TestLLMAnalyzer:
 class TestPromptTemplates:
     """프롬프트 템플릿 테스트."""
 
-    def test_vulnerability_analysis_template_exists(self):
+    def test_vulnerability_analysis_template_exists(self, prompts_dir):
         """취약점 분석 템플릿 존재 확인."""
-        template_path = Path(__file__).parent.parent / "core" / "prompts" / "ko" / "vulnerability_analysis.jinja2"
+        template_path = prompts_dir / "vulnerability_analysis.jinja2"
         assert template_path.exists(), f"템플릿이 없습니다: {template_path}"
 
-    def test_attack_scenario_template_exists(self):
+    def test_attack_scenario_template_exists(self, prompts_dir):
         """공격 시나리오 템플릿 존재 확인."""
-        template_path = Path(__file__).parent.parent / "core" / "prompts" / "ko" / "attack_scenario.jinja2"
+        template_path = prompts_dir / "attack_scenario.jinja2"
         assert template_path.exists(), f"템플릿이 없습니다: {template_path}"
 
-    def test_fix_suggestion_template_exists(self):
+    def test_fix_suggestion_template_exists(self, prompts_dir):
         """수정 제안 템플릿 존재 확인."""
-        template_path = Path(__file__).parent.parent / "core" / "prompts" / "ko" / "fix_suggestion.jinja2"
+        template_path = prompts_dir / "fix_suggestion.jinja2"
         assert template_path.exists(), f"템플릿이 없습니다: {template_path}"
 
     def test_render_template(self, sample_result):

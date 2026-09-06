@@ -12,8 +12,31 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+import anshim
 from anshim.core.db.database import reset_engine
 from anshim.core.db.models import Base
+
+# 설치된 anshim 패키지의 루트. 저장소 레이아웃(src/)에 의존하지 않도록
+# 패키지 위치에서 역산한다. 룰셋과 프롬프트는 패키지에 동봉되어 배포된다.
+PACKAGE_ROOT = Path(anshim.__file__).resolve().parent
+
+
+@pytest.fixture
+def package_root() -> Path:
+    """설치된 anshim 패키지 루트를 반환합니다."""
+    return PACKAGE_ROOT
+
+
+@pytest.fixture
+def rules_dir(package_root: Path) -> Path:
+    """패키지에 동봉된 룰셋 디렉토리를 반환합니다."""
+    return package_root / "rules"
+
+
+@pytest.fixture
+def prompts_dir(package_root: Path) -> Path:
+    """패키지에 동봉된 한국어 프롬프트 디렉토리를 반환합니다."""
+    return package_root / "core" / "prompts" / "ko"
 
 
 @pytest.fixture

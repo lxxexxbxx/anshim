@@ -61,22 +61,35 @@ dev = [
 anshim = "anshim.cli.main:app"
 
 [project.urls]
-Homepage = "https://github.com/lxxexxbbb/anshim"
-Documentation = "https://github.com/lxxexxbbb/anshim/tree/main/docs"
-Repository = "https://github.com/lxxexxbbb/anshim"
-Issues = "https://github.com/lxxexxbbb/anshim/issues"
+Homepage = "https://github.com/lxxexxbxx/anshim"
+Documentation = "https://github.com/lxxexxbxx/anshim/tree/main/docs"
+Repository = "https://github.com/lxxexxbxx/anshim"
+Issues = "https://github.com/lxxexxbxx/anshim/issues"
 
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-where = [".."]
+where = ["src"]
 include = ["anshim*"]
+
+[tool.setuptools.package-data]
+# 룰셋 YAML, 리포트 템플릿, LLM 프롬프트는 런타임에 읽으므로 패키지에 포함한다
+anshim = [
+    "rules/**/*.yaml",
+    "reports/templates/*.j2",
+    "core/prompts/ko/*.jinja2",
+]
 
 [tool.ruff]
 target-version = "py310"
 line-length = 100
+# 의도적으로 취약하게 작성된 샘플 코드. 탐지 대상이지 lint 대상이 아니다.
+extend-exclude = [
+    "docs/demo/demo_target",
+    "tests/fixtures",
+]
 
 [tool.ruff.lint]
 select = [
@@ -120,4 +133,4 @@ disallow_untyped_defs = false
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_functions = ["test_*"]
-addopts = "-v --cov=. --cov-report=term-missing"
+addopts = "-v --cov=anshim --cov-report=term-missing"

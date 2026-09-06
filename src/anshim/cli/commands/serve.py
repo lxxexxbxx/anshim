@@ -18,8 +18,33 @@ from rich.console import Console
 logger = logging.getLogger(__name__)
 console = Console()
 
+
+def _find_web_dir() -> Path:
+    """Next.js 웹 디렉토리를 탐색합니다.
+
+    src 레이아웃에서 web/은 파이썬 패키지 밖(저장소 루트)에 있으므로
+    패키지 기준 상대 경로만으로는 찾을 수 없습니다. 후보를 순서대로 확인하고,
+    모두 실패하면 마지막 후보를 반환합니다(호출부에서 존재 여부를 검사).
+
+    Returns:
+        package.json이 있는 첫 번째 후보 경로. 없으면 저장소 루트 추정 경로.
+    """
+    here = Path(__file__).resolve()
+    candidates: list[Path] = []
+    # parents[2]=anshim 패키지 루트, parents[4]=src 레이아웃의 저장소 루트
+    for depth in (2, 4):
+        if depth < len(here.parents):
+            candidates.append(here.parents[depth] / "web")
+    candidates.append(Path.cwd() / "web")
+
+    for candidate in candidates:
+        if (candidate / "package.json").is_file():
+            return candidate
+    return candidates[-1]
+
+
 # Next.js 웹 디렉토리 경로
-_WEB_DIR = Path(__file__).parent.parent.parent / "web"
+_WEB_DIR = _find_web_dir()
 
 
 def _start_api_server(host: str, api_port: int) -> None:
@@ -100,6 +125,7 @@ def serve_command(
     }
 
     import os
+
     env = {**os.environ, **next_env}
 
     try:
