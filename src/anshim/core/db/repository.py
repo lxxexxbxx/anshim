@@ -4,6 +4,7 @@
 스캔 결과 및 취약점 정보의 CRUD 작업을 캡슐화합니다.
 """
 
+import json
 import logging
 import uuid
 from datetime import datetime
@@ -455,6 +456,41 @@ class VulnerabilityRepository:
             if vuln:
                 session.expunge(vuln)
             return vuln
+
+    def update_explanation(
+        self,
+        vuln_id: int,
+        attack_scenario: dict | None = None,
+        remediation: dict | None = None,
+    ) -> bool:
+        """취약점의 공격 시나리오와 수정 제안을 저장합니다.
+
+        anshim explain 이 생성한 결과를 보관해 재생성을 피합니다.
+        구조화된 딕셔너리는 JSON 문자열로 직렬화해 Text 컬럼에 넣습니다.
+
+        Args:
+            vuln_id: 대상 취약점 ID.
+            attack_scenario: 공격 시나리오 딕셔너리.
+            remediation: 수정 제안 딕셔너리.
+
+        Returns:
+            갱신에 성공하면 True, 대상을 찾지 못하면 False.
+        """
+        with get_db(self.db_path) as session:
+            vuln = session.query(Vulnerability).filter(Vulnerability.id == vuln_id).first()
+            if vuln is None:
+                return False
+
+            if attack_scenario is not None:
+                vuln.attack_scenario = json.dumps(attack_scenario, ensure_ascii=False)
+            if remediation is not None:
+                vuln.remediation = json.dumps(remediation, ensure_ascii=False)
+                code = remediation.get("fixed_code") or remediation.get("code")
+                if isinstance(code, str):
+                    vuln.remediation_code = code
+
+            session.commit()
+            return True
 
     def get_compliance_mappings(
         self,

@@ -272,8 +272,10 @@ def _run_hybrid_analysis(
     # LLM 분석 여부 및 FP 제거 수 표시
     if result.llm_enabled:
         console.print(f"[dim]LLM 분석 완료 (모델: {result.model_used})[/dim]")
-        if result.false_positives_removed > 0:
-            console.print(f"[dim]False Positive 제거: {result.false_positives_removed}개[/dim]")
+        if result.false_positives_flagged > 0:
+            console.print(
+                f"[dim]오탐 가능성 표시: {result.false_positives_flagged}개 (결과에서 삭제하지 않음)[/dim]"
+            )
     elif not skip_llm:
         console.print("[yellow]LLM 분석 스킵 (Ollama 미실행)[/yellow]")
         console.print("[dim]Ollama 시작: ollama serve[/dim]")

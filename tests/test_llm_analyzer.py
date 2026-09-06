@@ -194,16 +194,17 @@ class TestLLMAnalyzer:
         assert len(results) == 2
         assert results[0].rule_id == sample_result.rule_id
 
-    def test_filter_false_positives(self, sample_result):
-        """False Positive 필터링."""
-        # 원본 결과 (False Positive 아님)
-        results = [sample_result]
+    def test_count_flagged_는_결과를_삭제하지_않는다(self, sample_result):
+        """오탐 판정은 표시만 하고 결과에서 지우지 않는다(설계 원칙 4)."""
+        flagged = sample_result.model_copy(update={"is_false_positive": True})
+        results = [sample_result, flagged]
 
         client = OllamaClient(base_url="http://localhost:99999")
         analyzer = LLMAnalyzer(model="exaone3.5:7.8b", ollama_client=client)
 
-        filtered = analyzer.filter_false_positives(results)
-        assert len(filtered) == 1
+        assert analyzer.count_flagged(results) == 1
+        # 목록 자체는 줄어들지 않는다
+        assert len(results) == 2
 
     def test_detect_language_python(self):
         """Python 파일 언어 감지."""

@@ -65,7 +65,7 @@ def _make_scan_result(num_results: int = 3) -> HybridScanResult:
         high_count=sum(1 for r in results if r.severity == "high"),
         medium_count=sum(1 for r in results if r.severity == "medium"),
         low_count=sum(1 for r in results if r.severity == "low"),
-        false_positives_removed=0,
+        false_positives_flagged=0,
         compliance_summary={
             "isms-p": {"total": 2, "by_severity": {"critical": 1, "medium": 1}},
             "owasp": {"total": 2, "by_severity": {"critical": 1, "medium": 1}},

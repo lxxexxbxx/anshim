@@ -37,7 +37,7 @@ class ReportData:
     high_count: int
     medium_count: int
     low_count: int
-    false_positives_removed: int
+    false_positives_flagged: int
 
     # 컴플라이언스 통계
     compliance_stats: list  # list[ComplianceStat]
@@ -74,7 +74,7 @@ class ReportData:
             high_count=result.high_count,
             medium_count=result.medium_count,
             low_count=result.low_count,
-            false_positives_removed=result.false_positives_removed,
+            false_positives_flagged=result.false_positives_flagged,
             compliance_stats=compliance_stats,
             results=result.results,
         )

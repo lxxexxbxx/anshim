@@ -203,7 +203,7 @@ def show_report(
         high_count=scan.high_count or 0,
         medium_count=scan.medium_count or 0,
         low_count=scan.low_count or 0,
-        false_positives_removed=0,
+        false_positives_flagged=0,
         compliance_summary={},
     )
 
@@ -346,7 +346,7 @@ def export_report(
         high_count=scan.high_count or 0,
         medium_count=scan.medium_count or 0,
         low_count=scan.low_count or 0,
-        false_positives_removed=0,
+        false_positives_flagged=0,
         compliance_summary={},
     )
 

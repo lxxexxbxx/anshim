@@ -6,7 +6,7 @@ Typer 기반 CLI 인터페이스를 제공합니다.
 
 import typer
 
-from anshim.cli.commands import init, models, report, scan, serve
+from anshim.cli.commands import explain, init, models, report, scan, serve
 
 # 메인 Typer 앱 생성
 app = typer.Typer(
@@ -22,6 +22,7 @@ app.command(name="init", help="초기 설정 (하드웨어 감지 + 모델 추�
 )
 app.command(name="scan", help="디렉토리 스캔 (보안 취약점 분석)")(scan.scan_command)
 app.command(name="serve", help="웹 대시보드 실행")(serve.serve_command)
+app.command(name="explain", help="취약점의 공격 시나리오와 수정 제안 생성")(explain.explain_command)
 
 # 서브 앱 등록 (models, report)
 app.add_typer(models.app, name="models", help="LLM 모델 관리")

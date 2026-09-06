@@ -249,6 +249,59 @@ def _evaluate_file(entry: dict, detections: list[dict]) -> FileOutcome:
     return outcome
 
 
+def _flag_aware_counts(files: list[dict]) -> dict:
+    """플래그를 반영한 지표를 계산합니다.
+
+    P2 이후 LLM은 오탐 판정을 결과에서 삭제하지 않고 표시만 한다. 따라서 원지표
+    (탐지 개수 기준)는 LLM의 기여를 전혀 반영하지 못한다. 사용자가 플래그를
+    신뢰한다고 가정했을 때 실제로 마주하는 결과를 따로 계산한다.
+
+    - 표시된 오탐은 사용자가 걸러낼 수 있으므로 유효 FP에서 제외한다.
+    - 반대로 진짜 취약점이 표시되면 사용자가 무시할 수 있으므로 유효 TP에서 빼고
+      미탐으로 센다. 미탐이 오탐보다 위험하므로 이 항목을 별도로 노출한다.
+
+    Args:
+        files: 결과 JSON 의 files 항목.
+
+    Returns:
+        유효 지표와 플래그 집계.
+    """
+    tp_unflagged = tp_flagged = 0
+    fp_unflagged = fp_flagged = 0
+    fn = 0
+
+    for entry in files:
+        fn += len(entry.get("missed") or [])
+        for match in entry.get("matched") or []:
+            if match["detected"].get("is_false_positive"):
+                tp_flagged += 1
+            else:
+                tp_unflagged += 1
+        if entry.get("label") != "negative":
+            continue
+        for det in entry.get("spurious") or []:
+            if det.get("is_false_positive"):
+                fp_flagged += 1
+            else:
+                fp_unflagged += 1
+
+    effective = Counts(
+        tp=tp_unflagged,
+        fp=fp_unflagged,
+        fn=fn + tp_flagged,
+        tn=0,
+    )
+    return {
+        "tp_unflagged": tp_unflagged,
+        "tp_flagged_as_fp": tp_flagged,
+        "fp_unflagged": fp_unflagged,
+        "fp_flagged": fp_flagged,
+        "effective_precision": round(effective.precision, 4),
+        "effective_recall": round(effective.recall, 4),
+        "effective_f1": round(effective.f1, 4),
+    }
+
+
 def run_config(
     name: str,
     model: str | None,
@@ -329,11 +382,12 @@ def run_config(
         },
         "corpus": labels["summary"],
         "accuracy": counts.as_dict(),
+        "flag_aware": _flag_aware_counts([o.as_dict() for o in outcomes]),
         "operational": {
             "total_seconds": round(elapsed, 2),
             "scanned_files": scan.scanned_files,
             "total_detections": len(scan.results),
-            "false_positives_removed": scan.false_positives_removed,
+            "false_positives_flagged": scan.false_positives_flagged,
             "peak_memory_mb": _peak_memory_mb(),
             "llm": analyzer.llm_metrics,
         },
@@ -397,6 +451,25 @@ def render_report() -> str:
         lines.append(
             f"| {r['config']} | {a['tp']} | {a['fp']} | {a['fn']} | {a['tn']} | "
             f"{a['precision']:.3f} | {a['recall']:.3f} | {a['f1']:.3f} |"
+        )
+
+    lines += ["", "## 플래그 반영 지표", ""]
+    lines.append(
+        "LLM은 오탐을 삭제하지 않고 표시만 한다. 사용자가 표시를 신뢰한다고 가정했을 때의 지표다."
+    )
+    lines.append("")
+    lines.append(
+        "| 구성 | 표시 안 된 TP | 표시된 오탐 | 남은 오탐 | 오표시된 진짜 취약점 | "
+        "유효 Precision | 유효 Recall | 유효 F1 |"
+    )
+    lines.append("|---|---|---|---|---|---|---|---|")
+    for r in results:
+        fa = r.get("flag_aware") or _flag_aware_counts(r.get("files") or [])
+        lines.append(
+            f"| {r['config']} | {fa['tp_unflagged']} | {fa['fp_flagged']} | "
+            f"{fa['fp_unflagged']} | {fa['tp_flagged_as_fp']} | "
+            f"{fa['effective_precision']:.3f} | {fa['effective_recall']:.3f} | "
+            f"{fa['effective_f1']:.3f} |"
         )
 
     lines += ["", "## 운영 지표", ""]

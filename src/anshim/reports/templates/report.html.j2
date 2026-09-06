@@ -125,8 +125,8 @@
       <tr><td style="width:180px;color:#6b7280;">분석 파일</td><td>{{ data.scanned_files }} / {{ data.total_files }}개</td></tr>
       <tr><td style="color:#6b7280;">컴플라이언스</td><td>{{ data.compliance_types | join(', ') | upper }}</td></tr>
       <tr><td style="color:#6b7280;">분석 방식</td><td>{{ "하이브리드 (규칙 기반 + LLM)" if data.llm_enabled else "규칙 기반" }}</td></tr>
-      {% if data.false_positives_removed > 0 %}
-      <tr><td style="color:#6b7280;">FP 제거</td><td>{{ data.false_positives_removed }}개</td></tr>
+      {% if data.false_positives_flagged > 0 %}
+      <tr><td style="color:#6b7280;">오탐 가능성 표시</td><td>{{ data.false_positives_flagged }}개 (삭제하지 않음)</td></tr>
       {% endif %}
     </table>
   </div>

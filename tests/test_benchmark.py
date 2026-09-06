@@ -251,3 +251,33 @@ class TestLLMOutputNormalization:
         mapped = MappedResult(**data, compliance_mappings=[])
         assert isinstance(mapped.isms_relevance, str)
         assert "2.7.1" in mapped.isms_relevance
+
+
+class TestExplainFormatting:
+    """explain 명령의 출력 정리 검증.
+
+    LLM은 문자열, 목록, 중첩 딕셔너리를 섞어서 반환한다. 그대로 출력하면
+    파이썬 repr 이 사용자에게 노출된다.
+    """
+
+    def test_목록은_불릿으로_펼친다(self) -> None:
+        from anshim.cli.commands.explain import _format_value
+
+        out = _format_value(["1단계", "2단계"], 1)
+        assert "- 1단계" in out
+        assert "- 2단계" in out
+        assert "[" not in out.replace("[bold]", "").replace("[/bold]", "")
+
+    def test_중첩_딕셔너리는_계층을_유지한다(self) -> None:
+        from anshim.cli.commands.explain import _format_value
+
+        out = _format_value({"steps": ["a", "b"], "impact": "high"}, 1)
+        assert "steps" in out and "impact" in out
+        assert "- a" in out and "- b" in out
+        # 목록은 키와 같은 줄에 붙지 않는다
+        assert "steps[/bold]: - a" not in out
+
+    def test_문자열은_그대로_둔다(self) -> None:
+        from anshim.cli.commands.explain import _format_value
+
+        assert _format_value("단순 문자열", 0) == "단순 문자열"

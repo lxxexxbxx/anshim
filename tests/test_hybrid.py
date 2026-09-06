@@ -44,7 +44,7 @@ class TestHybridScanResult:
             model_used="exaone3.5:7.8b",
             compliance_types=["isms-p", "owasp"],
             llm_enabled=True,
-            false_positives_removed=2,
+            false_positives_flagged=2,
             compliance_summary={"isms-p": {"total": 5}},
         )
 
@@ -54,7 +54,7 @@ class TestHybridScanResult:
         assert result.scanned_files == 5
         assert result.model_used == "exaone3.5:7.8b"
         assert result.llm_enabled is True
-        assert result.false_positives_removed == 2
+        assert result.false_positives_flagged == 2
         assert "isms-p" in result.compliance_types
 
     def test_severity_counts(self):
@@ -109,7 +109,7 @@ class TestHybridScanResult:
             model_used=None,
             compliance_types=["isms-p"],
             llm_enabled=False,
-            false_positives_removed=0,
+            false_positives_flagged=0,
             compliance_summary={},
         )
 

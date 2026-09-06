@@ -101,7 +101,7 @@ class JSONReporter(BaseReporter):
                 "model_used": data.model_used,
                 "compliance_types": data.compliance_types,
                 "llm_enabled": data.llm_enabled,
-                "false_positives_removed": data.false_positives_removed,
+                "false_positives_flagged": data.false_positives_flagged,
             },
             "statistics": {
                 "total_issues": data.total_issues,

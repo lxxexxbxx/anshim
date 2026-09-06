@@ -60,7 +60,7 @@ class HybridScanResult(BaseModel):
     high_count: int = Field(default=0, description="High 이슈 수")
     medium_count: int = Field(default=0, description="Medium 이슈 수")
     low_count: int = Field(default=0, description="Low 이슈 수")
-    false_positives_removed: int = Field(default=0, description="제거된 FP 수")
+    false_positives_flagged: int = Field(default=0, description="LLM이 오탐 가능성으로 표시한 수 (삭제하지 않음)")
 
     # 컴플라이언스별 통계
     compliance_summary: dict = Field(default_factory=dict, description="컴플라이언스별 통계")
@@ -74,7 +74,7 @@ class HybridScanResult(BaseModel):
         model_used: str | None,
         compliance_types: list[str],
         llm_enabled: bool,
-        false_positives_removed: int,
+        false_positives_flagged: int,
         compliance_summary: dict,
     ) -> "HybridScanResult":
         """ScanSummary에서 HybridScanResult 생성."""
@@ -100,7 +100,7 @@ class HybridScanResult(BaseModel):
             high_count=severity_counts["high"],
             medium_count=severity_counts["medium"],
             low_count=severity_counts["low"],
-            false_positives_removed=false_positives_removed,
+            false_positives_flagged=false_positives_flagged,
             compliance_summary=compliance_summary,
         )
 
@@ -218,7 +218,7 @@ class HybridAnalyzer:
 
         # 2. LLM 분석 (선택적)
         llm_enabled = False
-        false_positives_removed = 0
+        false_positives_flagged = 0
         analyzed_results = rule_summary.results
 
         if not skip_llm and self.llm_available and rule_summary.results:
@@ -230,7 +230,7 @@ class HybridAnalyzer:
                 timeout=llm_timeout,
             )
             llm_enabled = True
-            false_positives_removed = fp_count
+            false_positives_flagged = fp_count
             logger.info(
                 "[%s] LLM 분석 완료: %d개 이슈 (FP 제거: %d)",
                 scan_id,
@@ -272,7 +272,7 @@ class HybridAnalyzer:
             model_used=self.model if llm_enabled else None,
             compliance_types=self.compliance_types,
             llm_enabled=llm_enabled,
-            false_positives_removed=false_positives_removed,
+            false_positives_flagged=false_positives_flagged,
             compliance_summary=compliance_summary,
         )
 
@@ -323,11 +323,13 @@ class HybridAnalyzer:
             timeout=timeout,
         )
 
-        # False Positive 필터링
-        filtered = self._llm_analyzer.filter_false_positives(analyzed)
-        fp_count = len(analyzed) - len(filtered)
+        # 오탐으로 판정된 결과를 삭제하지 않고 표시만 한다.
+        # 보안 도구에서 미탐은 오탐보다 위험하므로(설계 원칙 4), LLM의 판정으로
+        # 결과를 지우면 사용자가 확인할 기회 자체가 사라진다. 표시만 하고
+        # 판단은 사용자에게 남긴다.
+        flagged = self._llm_analyzer.count_flagged(analyzed)
 
-        return filtered, fp_count
+        return analyzed, flagged
 
     def _run_compliance_mapping(
         self,

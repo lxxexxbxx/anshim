@@ -10,6 +10,7 @@ import logging
 import re
 import threading
 import time
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -28,6 +29,15 @@ PROMPT_DIR = Path(__file__).parent.parent / "prompts" / "ko"
 
 # 심각도로 인정하는 값. LLM이 임의 문자열을 반환해도 여기에 없으면 원본을 유지한다.
 _VALID_SEVERITIES = frozenset({"critical", "high", "medium", "low", "info"})
+
+# LLM 문맥 분류의 허용 판정. 목록에 없으면 unsure 로 떨어뜨린다.
+_VALID_VERDICTS = frozenset({"vulnerable", "mitigated", "not_security", "unsure"})
+
+# 완화 조치가 확인된 판정. 이 값이면 오탐 가능성 플래그를 세운다.
+# 결과를 삭제하지는 않는다(설계 원칙 4: 미탐이 오탐보다 위험하다).
+_MITIGATED_VERDICTS = frozenset({"mitigated", "not_security"})
+
+_VALID_CONFIDENCE = frozenset({"high", "medium", "low"})
 
 
 def _as_text(value: Any) -> str:
@@ -73,6 +83,60 @@ def _as_bool(value: Any) -> bool:
     if isinstance(value, str):
         return value.strip().lower() in {"true", "yes", "y", "1", "예", "맞음", "해당"}
     return False
+
+
+# 컨텍스트 구성 파라미터.
+# 분석기가 주는 code_snippet 은 3줄 안팎이라 용도 판별이 불가능하다.
+# (Semgrep 무료 티어는 아예 "requires login" 플레이스홀더를 넘긴다.)
+# 파일에서 직접 읽어 함수 전체와 모듈 docstring 이 보이도록 넓힌다.
+_CONTEXT_WHOLE_FILE_MAX_LINES = 300
+_CONTEXT_BEFORE = 40
+_CONTEXT_AFTER = 25
+_CONTEXT_HEAD_LINES = 20
+NEWLINE = "\n"
+
+
+def _build_code_context(file_path: str, line_start: int, fallback: str | None) -> str:
+    """LLM에 넘길 코드 컨텍스트를 구성합니다.
+
+    용도 판별(체크섬인지 비밀번호 해싱인지, 테스트 픽스처인지 운영 코드인지)에는
+    함수 이름과 docstring 이 필요하다. 분석기가 주는 몇 줄짜리 스니펫으로는
+    판단할 수 없으므로 원본 파일에서 다시 읽는다.
+
+    Args:
+        file_path: 대상 파일 경로.
+        line_start: 탐지된 라인 번호 (1-based).
+        fallback: 파일을 읽을 수 없을 때 사용할 스니펫.
+
+    Returns:
+        라인 번호가 붙은 코드 문자열. 파일을 읽지 못하면 fallback.
+    """
+    try:
+        lines = Path(file_path).read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return fallback or ""
+
+    if not lines:
+        return fallback or ""
+
+    if len(lines) <= _CONTEXT_WHOLE_FILE_MAX_LINES:
+        selected = list(range(len(lines)))
+    else:
+        start = max(0, line_start - 1 - _CONTEXT_BEFORE)
+        end = min(len(lines), line_start + _CONTEXT_AFTER)
+        selected = list(range(start, end))
+        # 모듈 docstring 과 import 는 용도 판별의 핵심 단서다. 창 밖이면 앞에 덧붙인다.
+        if start > _CONTEXT_HEAD_LINES:
+            selected = list(range(_CONTEXT_HEAD_LINES)) + [-1] + selected
+
+    rendered: list[str] = []
+    for index in selected:
+        if index == -1:
+            rendered.append("   ...")
+            continue
+        marker = ">>" if index + 1 == line_start else "  "
+        rendered.append(f"{marker} {index + 1:>4} | {lines[index]}")
+    return NEWLINE.join(rendered)
 
 
 @dataclass
@@ -223,32 +287,28 @@ class LLMAnalyzer:
 
             if analysis_data:
                 # False Positive 여부 업데이트
-                is_fp = _as_bool(analysis_data.get("is_false_positive", False))
+                verdict = _as_text(analysis_data.get("verdict", "")).strip().lower()
+                if verdict not in _VALID_VERDICTS:
+                    verdict = "unsure"
+                reason = _as_text(analysis_data.get("reason", "")).strip().lower()
+                confidence = _as_text(analysis_data.get("confidence", "")).strip().lower()
+                if confidence not in _VALID_CONFIDENCE:
+                    confidence = "low"
 
-                # 결과 복사 후 LLM 분석 결과 추가.
-                # 모델 출력의 타입을 신뢰하지 않고 전부 정규화한다.
+                # 결과 복사 후 문맥 분류 결과만 부착한다.
+                # 심각도와 ISMS 항목은 결정론적 엔진이 확정하므로 LLM이 건드리지 않는다
+                # (설계 원칙 1: LLM은 최종 판단을 하지 않는다).
                 result_dict = result.model_dump()
-                result_dict["llm_analysis"] = _as_text(analysis_data.get("analysis", ""))
-                result_dict["is_false_positive"] = is_fp
+                result_dict["llm_verdict"] = verdict
+                result_dict["llm_reason"] = reason
+                result_dict["llm_confidence"] = confidence
+                result_dict["is_false_positive"] = verdict in _MITIGATED_VERDICTS
+                result_dict["llm_analysis"] = f"{verdict} ({reason or 'unspecified'})"
 
-                adjusted = _as_text(analysis_data.get("severity_adjusted", "")).strip().lower()
-                result_dict["severity_adjusted"] = (
-                    adjusted if adjusted in _VALID_SEVERITIES else result.severity
-                )
-                result_dict["isms_relevance"] = _as_text(analysis_data.get("isms_relevance", ""))
-
-                # False Positive가 아닌 경우에만 공격 시나리오와 수정 제안 생성
-                if not is_fp:
-                    # 공격 시나리오 생성
-                    attack_data = self._generate_attack_scenario(result, timeout)
-                    if isinstance(attack_data, dict):
-                        result_dict["attack_scenario"] = attack_data
-
-                    # 수정 제안 생성
-                    fix_data = self._generate_fix_suggestion(result, timeout)
-                    if isinstance(fix_data, dict):
-                        result_dict["remediation"] = fix_data
-
+                # 공격 시나리오와 수정 제안은 스캔 경로에서 생성하지 않는다.
+                # 취약점 1건당 LLM 호출이 3회가 되어 스캔 시간의 대부분을 차지했고,
+                # 긴 서술을 JSON 안에 담느라 파싱 실패의 주된 원인이기도 했다.
+                # 필요할 때 explain_vulnerability() 로 따로 생성한다.
                 return AnalysisResult(**result_dict)
 
         except OllamaNotRunningError:
@@ -352,19 +412,70 @@ class LLMAnalyzer:
 
         return analyzed_results
 
-    def filter_false_positives(
-        self,
-        results: list[AnalysisResult],
-    ) -> list[AnalysisResult]:
-        """False Positive로 판단된 결과 제거.
+    @staticmethod
+    def count_flagged(results: list[AnalysisResult]) -> int:
+        """오탐 가능성으로 표시된 결과 수를 셉니다.
 
         Args:
             results: LLM 분석이 완료된 결과 목록.
 
         Returns:
-            is_false_positive=True인 결과가 제거된 목록.
+            is_false_positive=True 로 표시된 건수.
         """
-        return [r for r in results if not getattr(r, "is_false_positive", False)]
+        return sum(1 for r in results if getattr(r, "is_false_positive", False))
+
+    def explain_vulnerability(
+        self,
+        result: AnalysisResult,
+        timeout: int = 120,
+    ) -> dict[str, Any]:
+        """취약점 1건의 공격 시나리오와 수정 제안을 생성합니다.
+
+        스캔 경로에서는 호출하지 않습니다. 사용자가 특정 취약점을 지목했을 때만
+        실행하며, 그래서 응답이 길고 느려도 괜찮습니다.
+
+        Args:
+            result: 설명을 생성할 분석 결과.
+            timeout: 개별 요청 타임아웃 (초).
+
+        Returns:
+            attack_scenario 와 remediation 키를 갖는 딕셔너리.
+            생성에 실패한 항목은 None 이 들어간다.
+        """
+        if not self.is_available():
+            logger.warning("Ollama 미실행으로 설명 생성을 건너뜁니다")
+            return {"attack_scenario": None, "remediation": None}
+
+        # 서술 생성 프롬프트는 긴 출력을 JSON 에 담아야 해서 파싱 실패가 잦다.
+        # 대화형 명령이라 재시도의 지연을 감수할 수 있으므로 한 번 더 시도한다.
+        attack = self._retry_dict(self._generate_attack_scenario, result, timeout)
+        fix = self._retry_dict(self._generate_fix_suggestion, result, timeout)
+        return {"attack_scenario": attack, "remediation": fix}
+
+    def _retry_dict(
+        self,
+        generator: Callable[[AnalysisResult, int], dict[str, Any] | None],
+        result: AnalysisResult,
+        timeout: int,
+        attempts: int = 2,
+    ) -> dict[str, Any] | None:
+        """딕셔너리를 반환하는 생성기를 실패 시 재시도합니다.
+
+        Args:
+            generator: 생성 함수.
+            result: 대상 분석 결과.
+            timeout: 개별 요청 타임아웃.
+            attempts: 최대 시도 횟수.
+
+        Returns:
+            생성된 딕셔너리. 모두 실패하면 None.
+        """
+        for attempt in range(1, attempts + 1):
+            value = generator(result, timeout)
+            if isinstance(value, dict):
+                return value
+            logger.debug("생성 실패 (%d/%d): %s", attempt, attempts, generator.__name__)
+        return None
 
     def _render_template(
         self,
@@ -389,7 +500,9 @@ class LLMAnalyzer:
             file_path=result.file_path,
             line_start=result.line_start,
             line_end=result.line_end,
-            code_snippet=result.code_snippet or "",
+            code_snippet=_build_code_context(
+                result.file_path, result.line_start, result.code_snippet
+            ),
             source=result.source,
             confidence=result.confidence,
             language=self._detect_language(result.file_path),
