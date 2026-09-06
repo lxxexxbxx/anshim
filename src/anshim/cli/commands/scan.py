@@ -5,6 +5,7 @@ scan 명령어 - 코드 보안 스캔.
 """
 
 import logging
+import re
 import webbrowser
 from pathlib import Path
 
@@ -38,6 +39,31 @@ SEVERITY_MARKER: dict[str, str] = {
     "medium": "[yellow]*[/yellow]",
     "low": "[blue]*[/blue]",
 }
+
+
+# 벤치마크에서 오탐 판별 효과가 확인된 최소 파라미터 규모(단위: B).
+# 2.4B 는 컨텍스트를 충분히 줘도 탐지기 판정을 그대로 복창해 기여가 없었다.
+_MIN_USEFUL_PARAMS_B = 7.0
+
+_PARAM_SIZE_PATTERN = re.compile(r"(\d+(?:\.\d+)?)\s*b", re.IGNORECASE)
+
+
+def _model_param_size(model_tag: str) -> float | None:
+    """모델 태그에서 파라미터 규모를 추정합니다.
+
+    Args:
+        model_tag: Ollama 모델 태그 (예: exaone3.5:7.8b).
+
+    Returns:
+        파라미터 규모(B 단위). 추정할 수 없으면 None.
+    """
+    match = _PARAM_SIZE_PATTERN.search(model_tag.split(":")[-1])
+    if not match:
+        return None
+    try:
+        return float(match.group(1))
+    except ValueError:
+        return None
 
 
 def scan_command(
@@ -88,10 +114,15 @@ def scan_command(
         "-s",
         help="심각도 필터 (critical, high, medium, low)",
     ),
+    llm: bool = typer.Option(
+        False,
+        "--llm",
+        help="LLM 문맥 분류 활성화 (기본: 비활성). --model 을 주면 자동 활성화",
+    ),
     rule_only: bool = typer.Option(
         False,
         "--rule-only",
-        help="규칙 기반 분석만 수행 (LLM 분석 제외)",
+        help="규칙 기반만 수행 (기본 동작과 동일, 호환용)",
     ),
     llm_only: bool = typer.Option(
         False,
@@ -118,8 +149,13 @@ def scan_command(
     """
     디렉토리를 스캔하여 보안 취약점을 분석합니다.
 
-    기본적으로 하이브리드 분석 (규칙 기반 + LLM)을 수행하며,
-    선택한 컴플라이언스에 따라 결과를 매핑합니다.
+    기본은 규칙 기반 분석(Semgrep/Bandit)이며, 결과를 선택한 컴플라이언스
+    항목에 매핑합니다. 컴플라이언스 매핑은 결정론적이므로 LLM 없이도 동작합니다.
+
+    --llm 또는 --model 을 주면 LLM 문맥 분류를 추가로 수행해 오탐 가능성이 있는
+    항목을 표시합니다. 표시만 하며 결과를 삭제하지는 않습니다.
+    측정 결과 7.8B 이상에서만 효과가 있었고 스캔 시간이 6배로 늘어나므로
+    기본값은 비활성입니다.
     """
     # 로깅 레벨 설정
     if verbose:
@@ -141,15 +177,31 @@ def scan_command(
     # 모델 결정 (CLI 미지정 시 config > 추천 모델 순)
     selected_model = model or cfg.model or get_recommended_model().name
 
+    # LLM 사용 여부 결정. 기본은 비활성이며 명시적 옵트인만 켠다.
+    # --model 을 지정한 것은 LLM 을 쓰겠다는 의사표시로 본다.
+    use_llm = (llm or llm_only or model is not None) and not rule_only
+
     # 분석 모드 표시
-    if rule_only:
-        console.print("분석 모드: [yellow]규칙 기반만 (Semgrep/Bandit)[/yellow]")
+    if not use_llm:
+        console.print("분석 모드: [yellow]규칙 기반 (Semgrep/Bandit)[/yellow]")
+        console.print("[dim]LLM 문맥 분류는 --llm 또는 --model 로 활성화합니다.[/dim]")
     elif llm_only:
         console.print("분석 모드: [yellow]LLM만[/yellow]")
         console.print(f"LLM 모델: [cyan]{selected_model}[/cyan]")
     else:
-        console.print("분석 모드: [yellow]하이브리드 (규칙 + LLM)[/yellow]")
+        console.print("분석 모드: [yellow]규칙 기반 + LLM 문맥 분류[/yellow]")
         console.print(f"LLM 모델: [cyan]{selected_model}[/cyan]")
+
+    if use_llm:
+        params = _model_param_size(selected_model)
+        if params is not None and params < _MIN_USEFUL_PARAMS_B:
+            console.print(
+                f"[yellow]⚠ {selected_model} 은 벤치마크에서 오탐 감소 효과가 없었습니다.[/yellow]"
+            )
+            console.print(
+                "[dim]  소형 모델은 탐지기 판정을 그대로 따라가는 경향이 있습니다. "
+                f"{_MIN_USEFUL_PARAMS_B:g}B 이상 모델을 권장합니다.[/dim]"
+            )
 
     console.print()
 
@@ -161,13 +213,14 @@ def scan_command(
 
     # 분석기 상태 확인
     status = analyzer.get_status()
-    if not rule_only:
-        if not status.get("semgrep"):
-            console.print("[yellow]⚠ Semgrep 미설치: pip install semgrep[/yellow]")
-        if not status.get("bandit"):
-            console.print("[yellow]⚠ Bandit 미설치: pip install bandit[/yellow]")
-        if not status.get("ollama") and not rule_only:
-            console.print("[yellow]⚠ Ollama 미실행: ollama serve 로 시작 후 LLM 분석 가능[/yellow]")
+    # 규칙 기반 분석기는 항상 쓰이므로 미설치를 항상 알린다.
+    # Ollama 는 LLM 을 켠 경우에만 필요하다.
+    if not status.get("semgrep"):
+        console.print("[yellow]⚠ Semgrep 미설치: pip install semgrep[/yellow]")
+    if not status.get("bandit"):
+        console.print("[yellow]⚠ Bandit 미설치: pip install bandit[/yellow]")
+    if use_llm and not status.get("ollama"):
+        console.print("[yellow]⚠ Ollama 미실행: ollama serve 로 시작하세요[/yellow]")
 
     if verbose:
         console.print("[dim]분석기 상태:[/dim]")
@@ -186,7 +239,7 @@ def scan_command(
     result = _run_hybrid_analysis(
         analyzer=analyzer,
         target=target,
-        skip_llm=rule_only,
+        skip_llm=not use_llm,
         verbose=verbose,
     )
 

@@ -281,3 +281,41 @@ class TestExplainFormatting:
         from anshim.cli.commands.explain import _format_value
 
         assert _format_value("단순 문자열", 0) == "단순 문자열"
+
+
+class TestScanDefaults:
+    """scan 명령의 기본값과 모델 규모 경고 검증."""
+
+    def test_모델_태그에서_파라미터_규모를_읽는다(self) -> None:
+        from anshim.cli.commands.scan import _model_param_size
+
+        assert _model_param_size("exaone3.5:2.4b") == 2.4
+        assert _model_param_size("exaone3.5:7.8b") == 7.8
+        assert _model_param_size("qwen2.5-coder:14b") == 14.0
+
+    def test_규모를_알_수_없으면_None_이다(self) -> None:
+        """경고를 띄울지 판단할 수 없을 때 잘못 경고하지 않아야 한다."""
+        from anshim.cli.commands.scan import _model_param_size
+
+        assert _model_param_size("llama3") is None
+        assert _model_param_size("mistral:latest") is None
+
+    def test_경고_기준은_측정값에_근거한다(self) -> None:
+        """2.4B 는 기준 미달, 7.8B 는 통과여야 한다."""
+        from anshim.cli.commands.scan import _MIN_USEFUL_PARAMS_B, _model_param_size
+
+        assert _model_param_size("exaone3.5:2.4b") < _MIN_USEFUL_PARAMS_B
+        assert _model_param_size("exaone3.5:7.8b") >= _MIN_USEFUL_PARAMS_B
+
+    def test_소스에_비가시_제어문자가_없다(self) -> None:
+        """제어문자가 정규식에 섞여 패턴이 조용히 깨진 적이 있다."""
+        import pathlib
+
+        root = pathlib.Path(__file__).resolve().parent.parent
+        bad = {0x00, 0x08, 0x0B, 0x0C, 0x1A, 0x1B, 0x7F}
+        offenders = []
+        for path in list((root / "src").rglob("*.py")) + list((root / "scripts").rglob("*.py")):
+            raw = path.read_bytes()
+            if any(b in bad for b in raw):
+                offenders.append(str(path.relative_to(root)))
+        assert offenders == [], f"제어문자가 포함된 파일: {offenders}"

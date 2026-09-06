@@ -97,6 +97,17 @@ LLM은 오탐을 결과에서 삭제하지 않고 표시만 한다. 아래 유�
 - Python 단일 언어 기준이며 다른 언어로 일반화할 수 없다.
 - 단일 하드웨어에서 1회 측정이다. 반복 측정의 분산은 확인하지 않았다.
 
+### 그래서 기본값을 이렇게 정했다
+
+**기본은 규칙 기반이고 LLM 은 옵트인이다.** `--llm` 또는 `--model` 로 켠다.
+근거는 위 측정이다.
+
+- Ollama 없이도 동작해야 한다. 컴플라이언스 매핑은 결정론적이므로 LLM 이 필요 없다.
+- 2.4B 에서는 효과가 없었다. 소형 모델을 쓰는 저사양 환경에서 켜면 시간만 든다.
+- 10초 스캔은 CI 에 넣을 수 있지만 62초는 어렵다.
+
+7.8B 미만 모델로 LLM 을 켜면 벤치마크에서 효과가 없었다는 경고를 출력한다.
+
 ---
 
 ## 빠른 시작
@@ -106,15 +117,15 @@ git clone https://github.com/lxxexxbxx/anshim.git
 cd anshim
 pip install -e .
 
-# LLM 없이 즉시 실행
-anshim scan benchmarks/corpus/positive --rule-only --open
+# 기본 실행 (규칙 기반, Ollama 불필요)
+anshim scan benchmarks/corpus/positive --open
 ```
 
-로컬 LLM을 쓰려면:
+로컬 LLM 문맥 분류를 추가하려면 (7.8B 이상 권장):
 
 ```bash
 anshim init                    # 하드웨어 감지 → 모델 추천 → config 생성
-anshim scan benchmarks/corpus/positive --compliance isms-p --open
+anshim scan benchmarks/corpus/positive --model exaone3.5:7.8b --open
 ```
 
 출력 예시:
@@ -202,8 +213,9 @@ anshim report list | show <id> | export <id>
 주요 scan 옵션:
 
 ```
---rule-only            LLM 없이 규칙 기반만
---model <tag>          Ollama 모델 지정
+--llm                  LLM 문맥 분류 활성화 (기본: 비활성)
+--model <tag>          Ollama 모델 지정 (지정하면 LLM 자동 활성화)
+--rule-only            규칙 기반만 (기본 동작과 동일, 호환용)
 --compliance <types>   isms | isms-p | owasp | cwe (복수는 쉼표)
 --severity <level>     심각도 필터
 --excel                Excel 리포트 추가 생성
