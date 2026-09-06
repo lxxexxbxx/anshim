@@ -26,6 +26,55 @@ logger = logging.getLogger(__name__)
 PROMPT_DIR = Path(__file__).parent.parent / "prompts" / "ko"
 
 
+# 심각도로 인정하는 값. LLM이 임의 문자열을 반환해도 여기에 없으면 원본을 유지한다.
+_VALID_SEVERITIES = frozenset({"critical", "high", "medium", "low", "info"})
+
+
+def _as_text(value: Any) -> str:
+    """LLM이 반환한 값을 문자열로 정규화합니다.
+
+    프롬프트가 문자열을 요구해도 모델은 리스트나 딕셔너리를 반환하기도 한다.
+    AnalysisResult 는 extra="allow" 라 그대로 통과시키지만, 이후 MappedResult 의
+    타입 검증에서 스캔 전체가 중단된다. LLM 출력이 파이프라인을 멈추게 해서는
+    안 되므로(설계 원칙 1: LLM은 최종 판단을 하지 않는다) 여기서 흡수한다.
+
+    Args:
+        value: LLM 응답에서 꺼낸 값.
+
+    Returns:
+        문자열. None 이면 빈 문자열.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (list, tuple)):
+        return ", ".join(_as_text(v) for v in value if v is not None)
+    if isinstance(value, dict):
+        return ", ".join(f"{k}: {_as_text(v)}" for k, v in value.items())
+    return str(value)
+
+
+def _as_bool(value: Any) -> bool:
+    """LLM이 반환한 값을 불리언으로 정규화합니다.
+
+    모델은 true 대신 "true", "예", 1 같은 값을 반환하기도 한다.
+
+    Args:
+        value: LLM 응답에서 꺼낸 값.
+
+    Returns:
+        불리언 판정 결과. 해석할 수 없으면 False.
+    """
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        return value.strip().lower() in {"true", "yes", "y", "1", "예", "맞음", "해당"}
+    return False
+
+
 @dataclass
 class LLMMetrics:
     """LLM 호출 계측값.
@@ -174,27 +223,30 @@ class LLMAnalyzer:
 
             if analysis_data:
                 # False Positive 여부 업데이트
-                is_fp = analysis_data.get("is_false_positive", False)
+                is_fp = _as_bool(analysis_data.get("is_false_positive", False))
 
-                # 결과 복사 후 LLM 분석 결과 추가
+                # 결과 복사 후 LLM 분석 결과 추가.
+                # 모델 출력의 타입을 신뢰하지 않고 전부 정규화한다.
                 result_dict = result.model_dump()
-                result_dict["llm_analysis"] = analysis_data.get("analysis", "")
+                result_dict["llm_analysis"] = _as_text(analysis_data.get("analysis", ""))
                 result_dict["is_false_positive"] = is_fp
-                result_dict["severity_adjusted"] = analysis_data.get(
-                    "severity_adjusted", result.severity
+
+                adjusted = _as_text(analysis_data.get("severity_adjusted", "")).strip().lower()
+                result_dict["severity_adjusted"] = (
+                    adjusted if adjusted in _VALID_SEVERITIES else result.severity
                 )
-                result_dict["isms_relevance"] = analysis_data.get("isms_relevance", "")
+                result_dict["isms_relevance"] = _as_text(analysis_data.get("isms_relevance", ""))
 
                 # False Positive가 아닌 경우에만 공격 시나리오와 수정 제안 생성
                 if not is_fp:
                     # 공격 시나리오 생성
                     attack_data = self._generate_attack_scenario(result, timeout)
-                    if attack_data:
+                    if isinstance(attack_data, dict):
                         result_dict["attack_scenario"] = attack_data
 
                     # 수정 제안 생성
                     fix_data = self._generate_fix_suggestion(result, timeout)
-                    if fix_data:
+                    if isinstance(fix_data, dict):
                         result_dict["remediation"] = fix_data
 
                 return AnalysisResult(**result_dict)
@@ -391,8 +443,9 @@ class LLMAnalyzer:
             except json.JSONDecodeError:
                 pass
             else:
-                self.metrics.record_parse(succeeded=True)
-                return parsed
+                if isinstance(parsed, dict):
+                    self.metrics.record_parse(succeeded=True)
+                    return parsed
 
         # 전체 응답이 JSON인 경우
         try:
@@ -400,8 +453,9 @@ class LLMAnalyzer:
         except json.JSONDecodeError:
             pass
         else:
-            self.metrics.record_parse(succeeded=True)
-            return parsed
+            if isinstance(parsed, dict):
+                self.metrics.record_parse(succeeded=True)
+                return parsed
 
         # { ... } 패턴 추출
         brace_match = re.search(r"\{[\s\S]*\}", response)
@@ -411,8 +465,9 @@ class LLMAnalyzer:
             except json.JSONDecodeError:
                 pass
             else:
-                self.metrics.record_parse(succeeded=True)
-                return parsed
+                if isinstance(parsed, dict):
+                    self.metrics.record_parse(succeeded=True)
+                    return parsed
 
         self.metrics.record_parse(succeeded=False)
         logger.warning("JSON 파싱 실패: %s...", response[:100])

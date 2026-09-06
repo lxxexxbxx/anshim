@@ -192,3 +192,62 @@ class TestLLMMetrics:
         assert metrics.average_seconds == 0.0
         assert metrics.parse_failure_rate == 0.0
         assert metrics.as_dict()["call_count"] == 0
+
+
+class TestLLMOutputNormalization:
+    """LLM 출력 타입 정규화 검증.
+
+    회귀 방지: 모델이 문자열 대신 리스트를 반환하면 MappedResult 검증에서
+    스캔 전체가 중단됐다. 벤치마크 실행 중 실제로 발생한 크래시다.
+    """
+
+    def test_리스트를_문자열로_정규화한다(self) -> None:
+        from anshim.core.analyzers.llm_analyzer import _as_text
+
+        assert _as_text(["2.7.1 암호화 적용", "2.10.1 보안 요구사항 정의"]) == (
+            "2.7.1 암호화 적용, 2.10.1 보안 요구사항 정의"
+        )
+        assert _as_text({"a": "x"}) == "a: x"
+        assert _as_text(None) == ""
+        assert _as_text("그대로") == "그대로"
+
+    def test_불리언이_아닌_값을_정규화한다(self) -> None:
+        from anshim.core.analyzers.llm_analyzer import _as_bool
+
+        assert _as_bool("true") is True
+        assert _as_bool("예") is True
+        assert _as_bool(1) is True
+        assert _as_bool("false") is False
+        assert _as_bool(None) is False
+
+    def test_최상위가_배열인_응답은_파싱_실패로_처리한다(self) -> None:
+        from anshim.core.analyzers.llm_analyzer import LLMAnalyzer
+
+        analyzer = LLMAnalyzer(model="dummy")
+        assert analyzer._parse_json_response("[1, 2, 3]") is None
+        assert analyzer.metrics.parse_failures == 1
+
+    def test_LLM이_리스트를_반환해도_컴플라이언스_매핑이_통과한다(self) -> None:
+        """실제 크래시를 재현한다. 정규화 전에는 ValidationError 로 죽었다."""
+        from anshim.core.analyzers.models import AnalysisResult
+        from anshim.core.compliance.mapper import MappedResult
+
+        result = AnalysisResult(
+            rule_id="bandit.B324",
+            title="취약한 해시 알고리즘",
+            description="MD5 사용",
+            severity="high",
+            file_path="sample.py",
+            line_start=10,
+            source="bandit",
+        )
+        data = result.model_dump()
+        # 정규화를 거친 값이라면 문자열이어야 한다
+        from anshim.core.analyzers.llm_analyzer import _as_text
+
+        data["isms_relevance"] = _as_text(["2.7.1 암호화 적용", "2.10.1 보안 요구사항 정의"])
+        data["llm_analysis"] = _as_text(["문장1", "문장2"])
+
+        mapped = MappedResult(**data, compliance_mappings=[])
+        assert isinstance(mapped.isms_relevance, str)
+        assert "2.7.1" in mapped.isms_relevance
