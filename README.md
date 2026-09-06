@@ -42,7 +42,8 @@ Bandit B303은 MD5를 용도와 무관하게 잡는다. 파일 체크섬용 MD5�
 | `os.getenv("KEY", "dev-default")` | 기본값 문자열이 시크릿으로 오탐된다 |
 
 취약한 코드만으로는 Precision이 항상 100%로 나와 오탐을 측정할 수 없다.
-모델 티어별 측정 결과와 그에 따른 설계 변경은 [`docs/BENCHMARK.md`](docs/BENCHMARK.md) 참조.
+측정 결과 원본은 [`benchmarks/results/`](benchmarks/results/) 에 JSON 으로 커밋되어 있다.
+정답지는 [`benchmarks/labels.yaml`](benchmarks/labels.yaml) 이며 코퍼스의 마커에서 생성된다.
 
 ---
 
@@ -54,14 +55,14 @@ cd anshim
 pip install -e .
 
 # LLM 없이 즉시 실행
-anshim scan docs/demo/demo_target --rule-only --open
+anshim scan benchmarks/corpus/positive --rule-only --open
 ```
 
 로컬 LLM을 쓰려면:
 
 ```bash
 anshim init                    # 하드웨어 감지 → 모델 추천 → config 생성
-anshim scan docs/demo/demo_target --compliance isms-p --open
+anshim scan benchmarks/corpus/positive --compliance isms-p --open
 ```
 
 출력 예시:
@@ -95,7 +96,6 @@ LLM (선택)        →  문맥 분류               없어도 동작
 LLM에는 결정론적으로 판정하기 어려운 문맥 분류만 넘긴다.
 Ollama가 없으면 자동으로 규칙 기반 경로로 전환된다.
 
-상세: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
 
 ---
 
@@ -133,7 +133,6 @@ N개의 외부 룰이 1개의 인증 항목으로 묶이므로, 외부 도구가
 **이 도구만으로 인증 대응이 되지 않는다.** 자동화 도구의 가장 위험한 사용법은
 "스캔을 통과했으니 준비가 됐다"고 판단하는 것이다.
 
-항목별 판정: [`docs/ISMS_P_COVERAGE.md`](docs/ISMS_P_COVERAGE.md)
 
 ---
 
@@ -198,7 +197,6 @@ pytest, ruff, mypy
 - **프롬프트 인젝션 방어 불완전.** 구분자 격리 수준이며, LLM 출력이 최종 판정을
   결정하지 않는 구조로 영향을 제한했을 뿐이다.
 
-향후 계획: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 
 ---
 
@@ -217,21 +215,20 @@ python scripts/benchmark.py --all
 python scripts/benchmark.py --report
 ```
 
-기여 및 작업 규칙: [`CLAUDE.md`](CLAUDE.md)
 
 ---
 
-## 문서
+## 저장소 구성
 
-| 문서 | 내용 |
+| 경로 | 내용 |
 |---|---|
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | 실제 코드 기준 아키텍처 |
-| [BENCHMARK.md](docs/BENCHMARK.md) | 측정 결과 |
-| [BENCHMARK_SPEC.md](docs/BENCHMARK_SPEC.md) | 벤치마크 설계 명세 |
-| [ISMS_P_COVERAGE.md](docs/ISMS_P_COVERAGE.md) | 인증 항목별 자동화 가능 여부 |
-| [compliance_mapping.md](docs/compliance_mapping.md) | 매핑 상세 |
-| [rules.md](docs/rules.md) | 커스텀 룰 작성 가이드 |
-| [ROADMAP.md](docs/ROADMAP.md) | 향후 계획 |
+| [`src/anshim/`](src/anshim/) | 파이썬 패키지 (CLI, 분석기, 컴플라이언스 매퍼, 리포터) |
+| [`src/anshim/rules/`](src/anshim/rules/) | ISMS-P / OWASP / CWE 룰셋 YAML |
+| [`benchmarks/corpus/`](benchmarks/corpus/) | 벤치마크 코퍼스 (positive 8, negative 8) |
+| [`benchmarks/labels.yaml`](benchmarks/labels.yaml) | 정답지 (코퍼스 마커에서 생성) |
+| [`benchmarks/results/`](benchmarks/results/) | 측정 결과 JSON |
+| [`scripts/benchmark.py`](scripts/benchmark.py) | 벤치마크 러너 |
+| [`tests/`](tests/) | pytest |
 
 ---
 

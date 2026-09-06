@@ -53,3 +53,9 @@ reports/*.xlsx
 # 에이전트 작업 로그 - 로컬 경로/환경 정보 포함, 공개 금지
 logs/
 *.log
+
+# 문서 및 계획 파일 - 로컬에서만 관리한다 (공개 저장소에는 README.md 만 둔다)
+docs/
+*.md
+!README.md
+KICKOFF_PROMPT.txt
