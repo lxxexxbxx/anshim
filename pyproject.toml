@@ -86,8 +86,9 @@ anshim = [
 target-version = "py310"
 line-length = 100
 # 의도적으로 취약하게 작성된 샘플 코드. 탐지 대상이지 lint 대상이 아니다.
+# 벤치마크 코퍼스는 취약점을 담고 있어야 측정이 성립한다.
 extend-exclude = [
-    "docs/demo/demo_target",
+    "benchmarks/corpus",
     "tests/fixtures",
 ]
 
