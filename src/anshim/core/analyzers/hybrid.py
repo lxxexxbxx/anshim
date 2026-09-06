@@ -60,7 +60,9 @@ class HybridScanResult(BaseModel):
     high_count: int = Field(default=0, description="High 이슈 수")
     medium_count: int = Field(default=0, description="Medium 이슈 수")
     low_count: int = Field(default=0, description="Low 이슈 수")
-    false_positives_flagged: int = Field(default=0, description="LLM이 오탐 가능성으로 표시한 수 (삭제하지 않음)")
+    false_positives_flagged: int = Field(
+        default=0, description="LLM이 오탐 가능성으로 표시한 수 (삭제하지 않음)"
+    )
 
     # 컴플라이언스별 통계
     compliance_summary: dict = Field(default_factory=dict, description="컴플라이언스별 통계")
