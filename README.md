@@ -228,9 +228,10 @@ anshim report list | show <id> | export <id>
 
 | 항목 | 내용 |
 |---|---|
-| 코드 규모 | 약 9,000 라인 (Python + Next.js) |
-| 테스트 | pytest 153건 |
-| 매핑 룰셋 | ISMS-P 10 / OWASP 5 / CWE 3 |
+| 코드 규모 | Python 7,071줄 + 테스트 2,980줄 + 스크립트 769줄 + 웹 1,267줄 |
+| 테스트 | pytest 190건 |
+| 매핑 룰셋 | YAML 18개 (1,642줄) — ISMS-P 10 / OWASP 5 / CWE 3 |
+| 벤치마크 코퍼스 | positive 8 / negative 8 파일, 정답 15건 |
 | 리포트 | HTML, Excel, JSON, SARIF 2.1.0 |
 | 지원 언어 | Python (Bandit + Semgrep), JS/TS, Java (Semgrep) |
 
