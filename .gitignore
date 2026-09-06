@@ -1,52 +1,55 @@
-# 환경변수
-.env
-.env.local
-
-# 로그
-logs/
-*.log
-
 # Python
 __pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-*.so
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
+*.py[cod]
 *.egg-info/
-dist/
-build/
 .eggs/
-
-# 가상환경
-venv/
+build/
+dist/
 .venv/
-env/
+venv/
+
+# 테스트 / 린트 캐시
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
 
 # IDE
 .idea/
 .vscode/
-*.swp
-*.swo
+*.iml
 
 # OS
 .DS_Store
 Thumbs.db
 
-# AnShim 데이터
-.anshim/
-anshim-reports/
-*.db
+# AnShim 산출물
 anshim_report_*.html
+anshim_report_*.xlsx
+anshim_report_*.json
+anshim_report_*.sarif
+reports/*.html
+reports/*.xlsx
+!reports/templates/
+*.db
+*.sqlite3
 
-# 기타
-.aider*
-.coverage
-htmlcov/
-web/node_modules/
-web/.next/
-docs/demo/reports/
-docs/demo/demo_target/demo.db
+# 벤치마크 결과는 커밋한다 (측정 근거이므로 제외하지 않음)
+# benchmarks/results/  ← 의도적으로 ignore 하지 않음
+
+# 환경변수
+.env
+.env.local
+
+# 에이전트 작업 로그 - 로컬 경로/환경 정보 포함, 공개 금지
+logs/
+*.log
